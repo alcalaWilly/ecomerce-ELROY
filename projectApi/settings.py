@@ -41,7 +41,6 @@ SECRET_KEY = os.environ.get('SECRET_KEY')
 
 # para render
 DEBUG = config('DEBUG', default=True, cast=bool)
-
 # desarrollo.................................
 # DEBUG = 'RENDER' not in os.environ
 
@@ -188,12 +187,27 @@ CSRF_COOKIE_SAMESITE = "Lax"  # Permitir envío de CSRF desde el mismo sitio
 # SOCIAL_AUTH_FIELDS_STORED_IN_SESSION = ['state']
 # Password validation
 
-PASSWORD_HASHERS = [
-    "django.contrib.auth.hashers.Argon2PasswordHasher",
-    "django.contrib.auth.hashers.PBKDF2PasswordHasher",
-    "django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher",
-    "django.contrib.auth.hashers.BCryptSHA256PasswordHasher",
-]
+if os.name == "nt":  # Windows
+    PASSWORD_HASHERS = [
+        "django.contrib.auth.hashers.PBKDF2PasswordHasher",
+        "django.contrib.auth.hashers.Argon2PasswordHasher",
+        "django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher",
+        "django.contrib.auth.hashers.BCryptSHA256PasswordHasher",
+    ]
+else:  # Linux (Render)
+    PASSWORD_HASHERS = [
+        "django.contrib.auth.hashers.Argon2PasswordHasher",
+        "django.contrib.auth.hashers.PBKDF2PasswordHasher",
+        "django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher",
+        "django.contrib.auth.hashers.BCryptSHA256PasswordHasher",
+    ]
+
+# PASSWORD_HASHERS = [
+#     "django.contrib.auth.hashers.Argon2PasswordHasher",
+#     "django.contrib.auth.hashers.PBKDF2PasswordHasher",
+#     "django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher",
+#     "django.contrib.auth.hashers.BCryptSHA256PasswordHasher",
+# ]
 
 
 
@@ -240,17 +254,29 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
 
-
+# PARA LOCAL 00000000000000000000000000000000000000000000000
 STATIC_URL = '/static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')   # <-- SIEMPRE DEFINIDO
-
-STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'build', 'static'),
-]
-
 if not DEBUG:
+    STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
     STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+MEDIA_URL = '/media/'
+
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'build', 'static')  # Ruta a tu carpeta de archivos estáticos
+]
+
+# # DEPLOYING..................................................................................
+# STATIC_URL = '/static/'
+# STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')   # <-- SIEMPRE DEFINIDO
+
+# STATICFILES_DIRS = [
+#     os.path.join(BASE_DIR, 'build', 'static'),
+# ]
+
+# if not DEBUG:
+#     STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 SOCIAL_AUTH_PIPELINE = (
     'social_core.pipeline.social_auth.social_details',
@@ -344,7 +370,9 @@ DJOSER = {
     'SOCIAL_AUTH_TOKEN_STRATEGY': 'djoser.social.token.jwt.TokenStrategy',
     'SOCIAL_AUTH_ALLOWED_REDIRECT_URIS': [
         'http://localhost:8000/google', 
-        'http://localhost:8000/facebook'
+        'http://localhost:8000/facebook',
+        'https://e-elroy.onrender.com/google',
+        'https://e-elroy.onrender.com/facebook',
         ],
     'SERIALIZERS': {
         'user_create': 'apps.user.serializers.UserCreateSerializer',

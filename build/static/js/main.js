@@ -184,14 +184,14 @@ document.addEventListener('DOMContentLoaded', loadCategoryImages);
 
 /*=============== SHOW LOGIN ===============*/
 const login = document.getElementById('login'),
-  loginShop = document.getElementById('login-button')
+loginShop = document.getElementById('login-button')
 loginCheckout = document.getElementById('login-checkout'),
-  loginClose = document.getElementById('login-close');
+loginClose = document.getElementById('login-close');
 
 const createCount = document.getElementById('crear'),
-  createShop = document.getElementById('createCount-button'),
-  createClose = document.getElementById('loginCount-close'),
-  createBack = document.getElementById('loginCount-volver'); // Nuevo botón de volver
+createShop = document.getElementById('createCount-button'),
+createClose = document.getElementById('loginCount-close'),
+createBack = document.getElementById('loginCount-volver'); // Nuevo botón de volver
 
 /*===== LOGIN SHOW =====*/
 if (loginShop) {
@@ -1928,8 +1928,18 @@ document.getElementById("crearCuenta").addEventListener("click", async function 
       },
       body: JSON.stringify(userData)
     });
+    
+    let data = null;
+    const contentType = response.headers.get("content-type") || "";
 
-    const data = await response.json();
+    if (contentType.includes("application/json")) {
+      data = await response.json();
+    } else {
+      const text = await response.text();
+      data = { error: text }; // para ver qué llegó realmente
+    }
+
+    //const data = await response.json();
 
     if (response.ok) {
       swal(

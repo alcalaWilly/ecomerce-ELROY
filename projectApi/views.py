@@ -195,13 +195,14 @@ def login_user(request):
 
 User = get_user_model()  # Usa el modelo personalizado de usuario
 
+import traceback
 @csrf_exempt  # Desactiva CSRF solo si es necesario (para pruebas)
 @permission_classes([AllowAny]) 
 def registro_usuario(request):
     if request.method == "POST":
         try:
-            data = json.loads(request.body)  # Recibe el JSON del frontend
-
+            #data = json.loads(request.body)  # Recibe el JSON del frontend
+            data = json.loads(request.body.decode("utf-8"))
             # Extraer datos del JSON
             email = data.get("email")
             password = data.get("password")
@@ -248,6 +249,9 @@ def registro_usuario(request):
 
         except json.JSONDecodeError:
             return JsonResponse({"error": "Formato JSON inválido."}, status=400)
+        # except Exception as e:
+        #     traceback.print_exc()
+        #     return JsonResponse({"error": str(e)}, status=500)
 
     return JsonResponse({"error": "Método no permitido."}, status=405)
 
