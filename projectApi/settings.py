@@ -181,7 +181,9 @@ CSRF_COOKIE_HTTPONLY = False  # Asegura que JS pueda leer la cookie
 CSRF_COOKIE_SAMESITE = "Lax"  # Permitir envío de CSRF desde el mismo sitio
 
 # # Evita la verificación de `state`
-# SOCIAL_AUTH_REDIRECT_IS_HTTPS = False
+SOCIAL_AUTH_REDIRECT_IS_HTTPS = True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+USE_X_FORWARDED_HOST = True
 # SOCIAL_AUTH_SANITIZE_REDIRECTS = False
 # SOCIAL_AUTH_STATELESS = True
 # SOCIAL_AUTH_FIELDS_STORED_IN_SESSION = ['state']
