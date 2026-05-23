@@ -11,12 +11,12 @@
                     <div class="card">
                         <div class="card-body">
                             <label>Nombre</label>
-                            <input type="text" id="buscarLetraProducto" class="form-control buscarProduct"
+                            <input type="text" id="nameProduct" class="form-control buscarProduct"
                                 placeholder="Nombre del producto...">
                         </div>
                         <div class="card-body">
                             <label>Descripción</label>
-                            <textarea name="" id="" class="form-control buscarProduct" rows="2"
+                            <textarea name="" id="descripProduct" class="form-control buscarProduct" rows="2"
                                 placeholder="Descripción del producto..."></textarea>
                         </div>
                         <div class="card-body">
@@ -159,59 +159,31 @@
 
             </div>
 
-            <div class="col-md-4 col-xl-3 ">
+           <div class="col-md-4 col-xl-3">
                 <div class="card mb-3">
 
                     <div class="card-header clienteEdit">
-                        <h5 class="card-title mb-0">Cliente</h5>
-                        <i class="typcn typcn-plus fs-4 text-success ms-2" title="Agregar cliente"
-                            style="cursor: pointer;" onclick="window.location.href='/dash-addClient/'"></i>
+                        <h5 class="card-title mb-0">Detalle del producto</h5>
                     </div>
 
-                    <div class="card">
-                        <div class="card-body">
-                            <label>Buscar cliente</label>
-                            <input type="text" id="clientePedido" class="form-control buscarProduct"
-                                placeholder="Buscar cliente..." list="listaClientes">
+                    <div class="card-body">
 
-                            <datalist id="listaClientes"></datalist>
+                        <div class="mb-2">
+                            <div class="fw-bold">Nombre:</div>
+                            <div>PEDRO</div>
                         </div>
-                    </div>
-                    <div class="card">
-                        <div id="detalleClientePedido"></div>
-                        <!-- <div class="card-body">
-                            <h5 class="h6 card-title clienteDate">Información del contacto</h5>
-                            <ul class="list-unstyled mb-0">
-                                <li class="mb-1 d-flex align-items-center">
-                                    <span data-feather="mail" class="feather-sm me-2 text-primary"></span>
-                                    <a href="mailto:cliente@example.com" id="cliente-email" class="fw-bold text-blue">
-                                        Cargando...
-                                    </a>
-                                </li>
-                                <li class="mb-1"><span data-feather="phone" class="feather-sm me-1"></span> <span
-                                        id="cliente-telefono">Cargando...</span></li>
-    
-                                <li class="mb-1"><span data-feather="user" class="feather-sm me-1"></span> <span
-                                        id="cliente-nombre">Cargando...</span></li>
-                            </ul>
+
+                        <div class="mb-3">
+                            <div class="fw-bold">Descripción:</div>
+                            <div>Nacido en 1990 en Madrid...</div>
                         </div>
-                        <div class="card-body">
-                            <h5 class="h6 card-title clienteDate">Dirección predeterminada</h5>
-                            <ul class="list-unstyled mb-0">
-                                <li class="mb-1"><span data-feather="id-card" class="feather-sm me-1"></span> <span
-                                        id="cliente-ruc">Cargando...</span></li>
-                                <li class="mb-1"><span data-feather="map-pin" class="feather-sm me-1"></span> <span
-                                        id="cliente-direccion">Cargando...</span></li>
-                                <li class="mb-1"><span data-feather="map" class="feather-sm me-1"></span> <span
-                                        id="cliente-ciudad">Cargando...</span></li>
-                                <li class="mb-1"><span data-feather="globe" class="feather-sm me-1"></span> <span
-                                        id="cliente-region">Cargando...</span></li>
-                                <li class="mb-1"><span data-feather="mail" class="feather-sm me-1"></span> <span
-                                        id="cliente-codPostal">Cargando...</span></li>
-                            </ul>
-                        </div> -->
+
+                        <!-- Botón centrado -->
+                        <button type="button" class="btn btn-success" id="addProducto" disabled>
+                            Crear producto
+                        </button>
+
                     </div>
-                    <input type="hidden" id="cliente-id-hidden" />
 
                 </div>
             </div>

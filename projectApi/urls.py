@@ -20,15 +20,21 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib.auth import views as auth_views
 from apps.user.views import logout_view
-from .views import registro_usuario, login_user, actualizar_usuario, validate_session
+from .views import login_user, actualizar_usuario, validate_session,activate_view
 from . import views
 
 urlpatterns = [
+    path("activate/<uid>/<token>", activate_view, name="activate_no_slash"),
+    path("activate/<uid>/<token>/", activate_view, name="activate"),
     path('auth/', include('djoser.urls')),
     path('auth/', include('djoser.urls.jwt')),
     path('auth/', include('djoser.social.urls')),
-    path('auth/', include('social_django.urls')),
+    path('auth/', include('social_django.urls', namespace="social")),
+    path("api/jwt-from-session/", views.jwt_from_session, name="jwt_from_session"),
+
+    path("google-success/", views.google_login_success, name="google_success"), 
     # path("auth/o/google-oauth2/", include("djoser.social.urls")), 
+
     path('admin/', admin.site.urls),
     path('', views.index, name='index'),
     # path('', views.dash, name='das'),
@@ -37,18 +43,17 @@ urlpatterns = [
     ##############################################
     path('pedidos/', views.pedidos_partial, name='pedidos'),
     path('perfilUser/', views.perfil_partial, name='perfilUser'),
+    path('perfil/', views.perfil, name='my_acount'),
     path('pedidos_detalle/', views.pedidos_detalle, name='pedidos_detalle'),
 
 #############################################
-    path('user-logated/', views.userLogated, name='user_logated'),
-    path('perfil/', views.perfil, name='my_acount'),
-
-    # path('login/', auth_views.LoginView.as_view(), name='login'),
+    path('user-logated/', views.user_logated, name='user_logated'),
+    
     path('login/', login_user, name='login_user'),  # Cambiar a tu vista personalizada
     # activar la ceunta desde correro
     path('activar/<uidb64>/<token>/', views.activar_cuenta, name='activar_cuenta'),
 
-    path("api/registro/", registro_usuario, name="registro_usuario"),
+    # path("api/registro/", registro_usuario, name="registro_usuario"),
     path('actualizar-usuario/<int:id>/', actualizar_usuario, name='actualizar_usuario'),  # ✅ RUTA CORRECTA
 
     path("logout/", logout_view, name="logout"),

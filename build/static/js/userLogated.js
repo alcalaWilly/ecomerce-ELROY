@@ -1,4 +1,84 @@
+// document.addEventListener("DOMContentLoaded", async () => {
+//     const path = window.location.pathname;
 
+//     if (path.startsWith("/perfil/") || path === "/perfil/") {
+//         console.log("🟢 Estás en /perfil/");
+
+//         document.querySelectorAll('.sidebar-list-item').forEach(item => {
+//             item.addEventListener('click', function (e) {
+//                 e.preventDefault();
+
+//                 document.querySelectorAll('.sidebar-list-item').forEach(i => i.classList.remove('active'));
+//                 this.classList.add('active');
+
+//                 const url = this.getAttribute('data-url');
+//                 fetch(url)
+//                     .then(response => {
+//                         if (!response.ok) throw new Error('Network response was not ok');
+//                         return response.text();
+//                     })
+//                     .then(html => {
+//                         document.getElementById('main-content').innerHTML = html;
+
+//                         if (url.includes("pedidos")) {
+//                             cargarPedidos();
+//                         }
+
+//                         if (url.includes("detallePedido")) {
+//                             const urlParams = new URLSearchParams(window.location.search);
+//                             const transactionId = urlParams.get("transaction_id");
+//                             cargarDetallePedido(transactionId);
+//                         }
+
+//                         if (url.includes("perfilUser")) {
+//                             // Esperar a que el HTML ya haya sido cargado en #main-content
+//                             setTimeout(() => {
+//                                 const logoutButton = document.getElementById("closeSesion");
+
+//                                 if (logoutButton) {
+//                                     const logoutUrl = logoutButton.dataset.logoutUrl;
+
+//                                     logoutButton.addEventListener("click", function (e) {
+//                                         e.preventDefault();
+
+//                                         fetch(logoutUrl, {
+//                                             method: "POST",
+//                                             credentials: "same-origin",
+//                                             headers: {
+//                                                 "X-Requested-With": "XMLHttpRequest",
+//                                                 "Content-Type": "application/json",
+//                                                 // Opcional: CSRF token si lo necesitas
+//                                             }
+//                                         })
+//                                             .then(resp => {
+//                                                 if (!resp.ok) throw new Error("Logout falló");
+//                                                 return resp.json();
+//                                             })
+//                                             .then(() => {
+//                                                 localStorage.clear();
+//                                                 window.location.replace("/"); // o reemplaza con {% url 'index' %}
+//                                             })
+//                                             .catch(err => {
+//                                                 console.error(err);
+//                                                 alert("No se pudo cerrar sesión. Intenta de nuevo.");
+//                                             });
+//                                     });
+//                                 }
+
+//                             }, 100); // espera pequeña para asegurar que el DOM esté ya en el contenedor
+//                         }
+
+
+//                     })
+//                     .catch(err => console.error('❌ Error al cargar el contenido:', err));
+//             });
+//         });
+
+//         cargarPedidos();
+//     } else {
+//         console.log("🟡 No estás en /perfil/");
+//     }
+// });
 
 document.addEventListener("DOMContentLoaded", async () => {
     const path = window.location.pathname;
@@ -10,69 +90,37 @@ document.addEventListener("DOMContentLoaded", async () => {
             item.addEventListener('click', function (e) {
                 e.preventDefault();
 
-                document.querySelectorAll('.sidebar-list-item').forEach(i => i.classList.remove('active'));
+                const url = this.getAttribute('data-url');
+
+                // Si no tiene data-url (ej: cerrar sesión), no hacer nada
+                if (!url) return;
+
+                document.querySelectorAll('.sidebar-list-item')
+                    .forEach(i => i.classList.remove('active'));
+
                 this.classList.add('active');
 
-                const url = this.getAttribute('data-url');
-                fetch(url)
-                    .then(response => {
-                        if (!response.ok) throw new Error('Network response was not ok');
-                        return response.text();
-                    })
-                    .then(html => {
-                        document.getElementById('main-content').innerHTML = html;
+                fetch(url, {
+                    credentials: "same-origin"
+                })
+                .then(response => {
+                    if (!response.ok) throw new Error('Network response was not ok');
+                    return response.text();
+                })
+                .then(html => {
+                    document.getElementById('main-content').innerHTML = html;
 
-                        if (url.includes("pedidos")) {
-                            cargarPedidos();
-                        }
+                    if (url.includes("pedidos")) {
+                        cargarPedidos();
+                    }
 
-                        if (url.includes("detallePedido")) {
-                            const urlParams = new URLSearchParams(window.location.search);
-                            const transactionId = urlParams.get("transaction_id");
-                            cargarDetallePedido(transactionId);
-                        }
-
-                        if (url.includes("perfilUser")) {
-                            // Esperar a que el HTML ya haya sido cargado en #main-content
-                            setTimeout(() => {
-                                const logoutButton = document.getElementById("closeSesion");
-
-                                if (logoutButton) {
-                                    const logoutUrl = logoutButton.dataset.logoutUrl;
-
-                                    logoutButton.addEventListener("click", function (e) {
-                                        e.preventDefault();
-
-                                        fetch(logoutUrl, {
-                                            method: "POST",
-                                            credentials: "same-origin",
-                                            headers: {
-                                                "X-Requested-With": "XMLHttpRequest",
-                                                "Content-Type": "application/json",
-                                                // Opcional: CSRF token si lo necesitas
-                                            }
-                                        })
-                                            .then(resp => {
-                                                if (!resp.ok) throw new Error("Logout falló");
-                                                return resp.json();
-                                            })
-                                            .then(() => {
-                                                localStorage.clear();
-                                                window.location.replace("/"); // o reemplaza con {% url 'index' %}
-                                            })
-                                            .catch(err => {
-                                                console.error(err);
-                                                alert("No se pudo cerrar sesión. Intenta de nuevo.");
-                                            });
-                                    });
-                                }
-
-                            }, 100); // espera pequeña para asegurar que el DOM esté ya en el contenedor
-                        }
-
-
-                    })
-                    .catch(err => console.error('❌ Error al cargar el contenido:', err));
+                    if (url.includes("detallePedido")) {
+                        const urlParams = new URLSearchParams(window.location.search);
+                        const transactionId = urlParams.get("transaction_id");
+                        cargarDetallePedido(transactionId);
+                    }
+                })
+                .catch(err => console.error('❌ Error al cargar el contenido:', err));
             });
         });
 

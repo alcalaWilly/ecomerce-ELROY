@@ -41,6 +41,12 @@ from django.utils.http import urlsafe_base64_encode
 
 from django.utils.http import urlsafe_base64_decode
 
+from django.views.decorators.http import require_POST
+from django.views.decorators.csrf import csrf_protect
+
+from django.http import HttpResponseRedirect
+
+
 # def index(request):
 #     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':  # Detecta Fetch API
 #         return render(request, "index.html")
@@ -85,216 +91,282 @@ def pedidos_partial(request):
 @login_required
 def perfil_partial(request):
     return render(request, 'perfil.html')
-# def perfil(request):
-#     return render(request, 'userLogated.html')
+
+
 def is_staff_or_superuser(user):
     return user.is_authenticated and (user.is_staff or user.is_superuser)
 
-@csrf_exempt
+@login_required(login_url="/")
 @never_cache
-# @user_passes_test(is_staff_or_superuser, login_url='/login/')
 def perfil(request):
-    # Al entrar a /perfil/ cargamos userLogated.html con pedidos.html
-    return render(request, 'userLogated.html', {'content_template': 'pedidos.html'})
+    return render(request, 'userLogated.html', {
+        'content_template': 'pedidos.html'
+    })
 
 #####################################################################333
 
-@never_cache
-@login_required
-def userLogated(request):
-    user = request.user
+# @never_cache
+# @login_required
+# def userLogated(request):
+#     user = request.user
 
-    # Activar la cuenta si no está activa
-    if not user.is_active:
-        user.is_active = True
-        user.save()
+#     # Activar la cuenta si no está activa
+#     if not user.is_active:
+#         user.is_active = True
+#         user.save()
 
-    # Inicializar variables
-    picture_url = None
-    google_access_token = None
-    google_refresh_token = None
-    first_name = user.first_name
-    last_name = user.last_name
+#     # Inicializar variables
+#     picture_url = None
+#     google_access_token = None
+#     google_refresh_token = None
+#     first_name = user.first_name
+#     last_name = user.last_name
 
-    # Manejo de usuarios autenticados con Google OAuth2
-    if hasattr(user, "social_auth"):
-        social_accounts = user.social_auth.all()
-        for account in social_accounts:
-            if account.provider == "google-oauth2": 
-                google_access_token = account.extra_data.get("access_token")
-                google_refresh_token = account.extra_data.get("refresh_token") 
-                picture_url = account.extra_data.get("picture")
+#     # Manejo de usuarios autenticados con Google OAuth2
+#     if hasattr(user, "social_auth"):
+#         social_accounts = user.social_auth.all()
+#         for account in social_accounts:
+#             if account.provider == "google-oauth2": 
+#                 google_access_token = account.extra_data.get("access_token")
+#                 google_refresh_token = account.extra_data.get("refresh_token") 
+#                 picture_url = account.extra_data.get("picture")
 
-                # Obtener usuario desde user_useraccount
-                User = get_user_model()
-                google_user = User.objects.filter(id=account.user_id).first()
-                if google_user:
-                    first_name = google_user.first_name
-                    last_name = google_user.last_name
+#                 # Obtener usuario desde user_useraccount
+#                 User = get_user_model()
+#                 google_user = User.objects.filter(id=account.user_id).first()
+#                 if google_user:
+#                     first_name = google_user.first_name
+#                     last_name = google_user.last_name
 
-    # Si no es un usuario de Google, establecer una imagen de perfil predeterminada
-    if not picture_url:
-        picture_url = "/static/images/default_profile.png"  # Ruta de imagen por defecto
+#     # Si no es un usuario de Google, establecer una imagen de perfil predeterminada
+#     if not picture_url:
+#         picture_url = "/static/images/default_profile.png"  # Ruta de imagen por defecto
 
-    # Generar JWTs para todos los usuarios
-    refresh = RefreshToken.for_user(user)
-    jwt_access_token = str(refresh.access_token)
-    jwt_refresh_token = str(refresh)
+#     # Generar JWTs para todos los usuarios
+#     refresh = RefreshToken.for_user(user)
+#     jwt_access_token = str(refresh.access_token)
+#     jwt_refresh_token = str(refresh)
 
-    # Redirigir al frontend con los datos en la URL
-    params = {
-        "access_token": jwt_access_token,
-        "refresh_token": jwt_refresh_token,
-        "email": user.email,
-        "first_name": first_name,
-        "last_name": last_name,
-        "picture_url": picture_url
-    }
+#     # Redirigir al frontend con los datos en la URL
+#     params = {
+#         "access_token": jwt_access_token,
+#         "refresh_token": jwt_refresh_token,
+#         "email": user.email,
+#         "first_name": first_name,
+#         "last_name": last_name,
+#         "picture_url": picture_url
+#     }
 
-    redirect_url = f"/perfil/?{urlencode(params, quote_via=quote_plus)}"
+#     redirect_url = f"/perfil/?{urlencode(params, quote_via=quote_plus)}"
 
-    return redirect(redirect_url)
+#     return redirect(redirect_url)
 
-@csrf_exempt
+
+def user_logated(request):
+    return render(request, "user_logated.html")
+
+# @csrf_exempt
+# def login_user(request):
+#     if request.method == "POST":
+#         email = request.POST.get("username")
+#         password = request.POST.get("password")
+
+#         # Autenticación
+#         user = authenticate(request, email=email, password=password)
+
+#         if user is not None:
+#             login(request, user)
+
+#             # Generar JWT usando SimpleJWT
+#             refresh = RefreshToken.for_user(user)
+#             jwt_access_token = str(refresh.access_token)
+#             jwt_refresh_token = str(refresh)
+
+#             # Retornar los tokens y los datos adicionales
+#             return JsonResponse({
+#                 "message": "Inicio de sesión exitoso",
+#                 "access_token": jwt_access_token,
+#                 "refresh_token": jwt_refresh_token,
+#                 "email": user.email,
+#                 "first_name": user.first_name,
+#                 "last_name": user.last_name,
+#                 "telefono": user.telefono,  # Asegúrate de que el modelo de usuario tenga este campo
+#                 "direccion": user.direccion,
+#                 "ruc": user.ruc,
+#                 "ciudad": user.ciudad,
+#                 "region": user.region,
+#                 "codPostal": user.codPostal
+#             }, status=200)
+#         else:
+#             return JsonResponse({"error": "Correo o contraseña incorrectos"}, status=400)
+
+#     return JsonResponse({"error": "Método no permitido"}, status=405)
+
+@require_POST
+@csrf_protect
 def login_user(request):
-    if request.method == "POST":
-        email = request.POST.get("username")
-        password = request.POST.get("password")
+    email = request.POST.get("username", "").strip()
+    password = request.POST.get("password", "")
 
-        # Autenticación
-        user = authenticate(request, email=email, password=password)
+    if not email or not password:
+        return JsonResponse({"error": "Falta correo o contraseña."}, status=400)
 
-        if user is not None:
-            login(request, user)
+    # OPCIÓN A (recomendada si tu User usa USERNAME_FIELD='email' + backend correcto):
+    user = authenticate(request, email=email, password=password)
 
-            # Generar JWT usando SimpleJWT
-            refresh = RefreshToken.for_user(user)
-            jwt_access_token = str(refresh.access_token)
-            jwt_refresh_token = str(refresh)
+    # OPCIÓN B (si NO tienes backend por email, usa username=email):
+    if user is None:
+        user = authenticate(request, username=email, password=password)
 
-            # Retornar los tokens y los datos adicionales
-            return JsonResponse({
-                "message": "Inicio de sesión exitoso",
-                "access_token": jwt_access_token,
-                "refresh_token": jwt_refresh_token,
-                "email": user.email,
-                "first_name": user.first_name,
-                "last_name": user.last_name,
-                "telefono": user.telefono,  # Asegúrate de que el modelo de usuario tenga este campo
-                "direccion": user.direccion,
-                "ruc": user.ruc,
-                "ciudad": user.ciudad,
-                "region": user.region,
-                "codPostal": user.codPostal
-            }, status=200)
-        else:
-            return JsonResponse({"error": "Correo o contraseña incorrectos"}, status=400)
+    if user is None:
+        return JsonResponse({"error": "Correo o contraseña incorrectos"}, status=400)
 
-    return JsonResponse({"error": "Método no permitido"}, status=405)
+    if not user.is_active:
+        return JsonResponse({"error": "Tu cuenta está desactivada."}, status=403)
+
+    login(request, user)
+
+    refresh = RefreshToken.for_user(user)
+    return JsonResponse({
+        "message": "Inicio de sesión exitoso",
+        "access_token": str(refresh.access_token),
+        "refresh_token": str(refresh),
+        "email": user.email,
+        "first_name": getattr(user, "first_name", ""),
+        "last_name": getattr(user, "last_name", ""),
+        "telefono": getattr(user, "telefono", ""),
+        "direccion": getattr(user, "direccion", ""),
+        "ruc": getattr(user, "ruc", ""),
+        "ciudad": getattr(user, "ciudad", ""),
+        "region": getattr(user, "region", ""),
+        "codPostal": getattr(user, "codPostal", ""),
+    }, status=200)
 
 
 User = get_user_model()  # Usa el modelo personalizado de usuario
 
-import traceback
-@csrf_exempt  # Desactiva CSRF solo si es necesario (para pruebas)
-@permission_classes([AllowAny]) 
-def registro_usuario(request):
-    if request.method == "POST":
-        try:
-            #data = json.loads(request.body)  # Recibe el JSON del frontend
-            data = json.loads(request.body.decode("utf-8"))
-            # Extraer datos del JSON
-            email = data.get("email")
-            password = data.get("password")
-            first_name = data.get("first_name")
-            last_name = data.get("last_name")
-            telefono = data.get("phone")
-            direccion = data.get("direccion")
-            ruc = data.get("ruc")
-            ciudad = data.get("ciudad")
-            region = data.get("region")
-            codPostal = data.get("codPostal")
+# import traceback
+# @csrf_exempt  # Desactiva CSRF solo si es necesario (para pruebas)
+# @permission_classes([AllowAny]) 
+# def registro_usuario(request):
+#     if request.method == "POST":
+#         try:
+#             #data = json.loads(request.body)  # Recibe el JSON del frontend
+#             data = json.loads(request.body.decode("utf-8"))
+#             # Extraer datos del JSON
+#             email = data.get("email")
+#             password = data.get("password")
+#             first_name = data.get("first_name")
+#             last_name = data.get("last_name")
+#             telefono = data.get("phone")
+#             direccion = data.get("direccion")
+#             ruc = data.get("ruc")
+#             ciudad = data.get("ciudad")
+#             region = data.get("region")
+#             codPostal = data.get("codPostal")
 
-            # Convertir valores vacíos a None
-            telefono = telefono if telefono else None
-            direccion = direccion if direccion else None
-            ruc = ruc if ruc else None
-            ciudad = ciudad if ciudad else None
-            region = region if region else None
-            codPostal = codPostal if codPostal else None
+#             # Convertir valores vacíos a None
+#             telefono = telefono if telefono else None
+#             direccion = direccion if direccion else None
+#             ruc = ruc if ruc else None
+#             ciudad = ciudad if ciudad else None
+#             region = region if region else None
+#             codPostal = codPostal if codPostal else None
 
-            # Verificar si el usuario ya existe
-            if User.objects.filter(email=email).exists():
-                return JsonResponse({"error": "El usuario ya existe."}, status=400)
+#             # Verificar si el usuario ya existe
+#             if User.objects.filter(email=email).exists():
+#                 return JsonResponse({"error": "El usuario ya existe."}, status=400)
 
-            # Crear usuario usando create_user
-            user = User.objects.create_user(
-                email=email,
-                password=password,
-                first_name=first_name,
-                last_name=last_name,
-                telefono=telefono,
-                direccion=direccion,
-                ruc=ruc,
-                ciudad=ciudad,
-                region=region,
-                codPostal=codPostal
-            )
+#             # Crear usuario usando create_user
+#             user = User.objects.create_user(
+#                 email=email,
+#                 password=password,
+#                 first_name=first_name,
+#                 last_name=last_name,
+#                 telefono=telefono,
+#                 direccion=direccion,
+#                 ruc=ruc,
+#                 ciudad=ciudad,
+#                 region=region,
+#                 codPostal=codPostal
+#             )
 
-            # ⬇️ Envía el correo después del registro
-            #enviar_correo_activacion(user, request)
-            enviar_correo_bienvenida(user)
+#             # ⬇️ Envía el correo después del registro
+#             #enviar_correo_activacion(user, request)
+#             enviar_correo_bienvenida(user)
 
-            return JsonResponse({"message": "Usuario registrado exitosamente."}, status=201)
+#             return JsonResponse({"message": "Usuario registrado exitosamente."}, status=201)
 
-        except json.JSONDecodeError:
-            return JsonResponse({"error": "Formato JSON inválido."}, status=400)
-        # except Exception as e:
-        #     traceback.print_exc()
-        #     return JsonResponse({"error": str(e)}, status=500)
+#         except json.JSONDecodeError:
+#             return JsonResponse({"error": "Formato JSON inválido."}, status=400)
+#         # except Exception as e:
+#         #     traceback.print_exc()
+#         #     return JsonResponse({"error": str(e)}, status=500)
 
-    return JsonResponse({"error": "Método no permitido."}, status=405)
+#     return JsonResponse({"error": "Método no permitido."}, status=405)
 
 
-def enviar_correo_bienvenida(usuario):
-    asunto = '¡Bienvenido a Vudera!'
-    mensaje = f"""
-Hola {usuario.first_name},
+# @api_view(["POST"])
+# @permission_classes([AllowAny])
+# def registro_usuario(request):
+#     data = request.data.copy()
 
-Gracias por registrarte en EL♥ROY. ¡Estamos felices de tenerte con nosotros!
+#     # ✅ Si tu frontend manda "phone", lo mapeas a "telefono"
+#     if "phone" in data and "telefono" not in data:
+#         data["telefono"] = data.pop("phone")
 
-Atentamente,
-El equipo de EL♥ROY
-"""
-    send_mail(
-        asunto,
-        mensaje,
-        settings.EMAIL_HOST_USER,
-        [usuario.email],
-        fail_silently=False
-    )
+#     serializer = UserCreateSerializer(data=data)
+#     serializer.is_valid(raise_exception=True)
+#     user = serializer.save()
 
-def enviar_correo_activacion(usuario, request):
-    token = default_token_generator.make_token(usuario)
-    uid = urlsafe_base64_encode(force_bytes(usuario.pk))
+#     enviar_correo_bienvenida(user)  # si quieres enviar correo aquí
+
+#     return Response({"message": "Usuario registrado exitosamente."}, status=status.HTTP_201_CREATED)
+
+
+# def enviar_correo_bienvenida(usuario):
+#     asunto = '¡Bienvenido a Vudera!'
+#     mensaje = f"""
+# Hola {usuario.first_name},
+
+# Gracias por registrarte en EL♥ROY. ¡Estamos felices de tenerte con nosotros!
+
+# Atentamente,
+# El equipo de EL♥ROY
+# """
+#     send_mail(
+#         asunto,
+#         mensaje,
+#         settings.EMAIL_HOST_USER,
+#         [usuario.email],
+#         fail_silently=False
+#     )
+
+# def enviar_correo_activacion(usuario, request):
+#     token = default_token_generator.make_token(usuario)
+#     uid = urlsafe_base64_encode(force_bytes(usuario.pk))
     
-    activation_link = request.build_absolute_uri(
-        reverse('activar_cuenta', kwargs={'uidb64': uid, 'token': token})
-    )
+#     activation_link = request.build_absolute_uri(
+#         reverse('activar_cuenta', kwargs={'uidb64': uid, 'token': token})
+#     )
 
-    asunto = 'Activa tu cuenta en EL♥ROY'
-    mensaje = f"""
-Hola {usuario.first_name},
+#     asunto = 'Activa tu cuenta en EL♥ROY'
+#     mensaje = f"""
+# Hola {usuario.first_name},
 
-Gracias por registrarte en EL♥ROY. Por favor activa tu cuenta haciendo clic en el siguiente enlace:
+# Gracias por registrarte en EL♥ROY. Por favor activa tu cuenta haciendo clic en el siguiente enlace:
 
-{activation_link}
+# {activation_link}
 
-Este enlace expirará después de cierto tiempo por seguridad.
+# Este enlace expirará después de cierto tiempo por seguridad.
 
-El equipo de EL♥ROY
-"""
-    send_mail(asunto, mensaje, settings.EMAIL_HOST_USER, [usuario.email])
+# El equipo de EL♥ROY
+# """
+#     send_mail(asunto, mensaje, settings.EMAIL_HOST_USER, [usuario.email])
+
+def activate_view(request, uid, token):
+    # solo sirve la página; la activación real la hace JS llamando a /auth/users/activation/
+    return render(request, "activate.html", {"uid": uid, "token": token})
 
 def activar_cuenta(request, uidb64, token):
     try:
@@ -326,7 +398,53 @@ def activar_cuenta(request, uidb64, token):
     else:
         return HttpResponse("El enlace de activación es inválido o ha expirado.")
 
-    
+@require_POST
+@login_required
+def jwt_from_session(request):
+    user = request.user
+
+    refresh = RefreshToken.for_user(user)
+
+    return JsonResponse({
+        "access_token": str(refresh.access_token),
+        "refresh_token": str(refresh),
+
+        "email": user.email,
+        "first_name": user.first_name or "",
+        "last_name": user.last_name or "",
+
+        "telefono": getattr(user, "telefono", "") or "",
+        "direccion": getattr(user, "direccion", "") or "",
+        "ruc": getattr(user, "ruc", "") or "",
+        "ciudad": getattr(user, "ciudad", "") or "",
+        "region": getattr(user, "region", "") or "",
+        "codPostal": getattr(user, "codPostal", "") or "",
+    }, status=200)
+
+def google_login_success(request):
+    if request.user.is_authenticated:
+        refresh = RefreshToken.for_user(request.user)
+
+        response = HttpResponseRedirect("/perfil/")
+
+        response.set_cookie(
+            "access_token",
+            str(refresh.access_token),
+            httponly=True,
+            samesite="Lax"
+        )
+        response.set_cookie(
+            "refresh_token",
+            str(refresh),
+            httponly=True,
+            samesite="Lax"
+        )
+
+        return response
+
+    return HttpResponseRedirect("/")
+
+
 @csrf_exempt  # ⚠️ Solo para pruebas locales
 @api_view(["GET", "PUT"])  # ✅ Permitir GET y PUT
 @authentication_classes([JWTAuthentication])
@@ -425,9 +543,11 @@ def is_staff_or_superuser(user):
 def validate_session(request):
     return JsonResponse({"message": "Sesión activa"})
 
+# @never_cache
+# @user_passes_test(is_staff_or_superuser, login_url='/login/')
+# @login_required
+@login_required(login_url="/")
 @never_cache
-@user_passes_test(is_staff_or_superuser, login_url='/login/')
-@login_required
 def dash(request):
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':  
         return render(request, "dash/home.html")
@@ -437,54 +557,54 @@ def dash(request):
 #     return render(request, 'dash/home.html')
 
 
-@user_passes_test(is_staff_or_superuser, login_url='/login/')
+@user_passes_test(is_staff_or_superuser, login_url='/')
 def dashProduct(request):
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':  # Detecta Fetch API
         return render(request, "dash/pages/product/dashProduct.html")
     return render(request, "dash/baseHome.html", {"content_template": "dash/pages/product/dashProduct.html"})
 
 
-@user_passes_test(is_staff_or_superuser, login_url='/login/')
+@user_passes_test(is_staff_or_superuser, login_url='/')
 def dashUser(request):
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':  # Detecta Fetch API
         return render(request, "dash/pages/users/dashUser.html")
     return render(request, "dash/baseHome.html", {"content_template": "dash/pages/users/dashUser.html"})
 
 
-@user_passes_test(is_staff_or_superuser, login_url='/login/')
+@user_passes_test(is_staff_or_superuser, login_url='/')
 def dashAddProducts(request):
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':  # Detecta Fetch API
         return render(request, "dash/pages/product/dashAddProducts.html")
     return render(request, "dash/baseHome.html", {"content_template": "dash/pages/product/dashAddProducts.html"})
 
 # LO NUEVOOOOOOOOOOOOOOOOOOO PARA AGREGAR PRODUCTOS
-@user_passes_test(is_staff_or_superuser, login_url='/login/')
+@user_passes_test(is_staff_or_superuser, login_url='/')
 def dashAddProduct(request):
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':  # Detecta Fetch API
         return render(request, "dash/pages/product/dashAddProduct.html")
     return render(request, "dash/baseHome.html", {"content_template": "dash/pages/product/dashAddProduct.html"})
 
 
-@user_passes_test(is_staff_or_superuser, login_url='/login/')
+@user_passes_test(is_staff_or_superuser, login_url='/')
 def dashConfiguration(request):
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':  # Detecta Fetch API
         return render(request, "dash/pages/configuration/dashConfig.html")
     return render(request, "dash/baseHome.html", {"content_template": "dash/pages/configuration/dashConfig.html"})
 
 
-@user_passes_test(is_staff_or_superuser, login_url='/login/')
+@user_passes_test(is_staff_or_superuser, login_url='/')
 def dashPromocion(request):
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':  # Detecta Fetch API
         return render(request, "dash/pages/configuration/dashPromociones.html")
     return render(request, "dash/baseHome.html", {"content_template": "dash/pages/configuration/dashPromociones.html"})
 
-@user_passes_test(is_staff_or_superuser, login_url='/login/')
+@user_passes_test(is_staff_or_superuser, login_url='/')
 def addDescuento(request):
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':  # Detecta Fetch API
         return render(request, "dash/pages/configuration/addDescuento.html")
     return render(request, "dash/baseHome.html", {"content_template": "dash/pages/configuration/addDescuento.html"})
 
-@user_passes_test(is_staff_or_superuser, login_url='/login/')
+@user_passes_test(is_staff_or_superuser, login_url='/')
 def updateDescuento(request):
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':  # Detecta Fetch API
         return render(request, "dash/pages/configuration/updateDescuento.html")
@@ -493,7 +613,7 @@ def updateDescuento(request):
 
 
 # PÁGINAS
-@user_passes_test(is_staff_or_superuser, login_url='/login/')
+@user_passes_test(is_staff_or_superuser, login_url='/')
 def dashInicio(request):
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':  # Detecta Fetch API
         return render(request, "dash/pages/paginas/dashInicio.html")
@@ -501,13 +621,13 @@ def dashInicio(request):
 
 
 # CLIENTES
-@user_passes_test(is_staff_or_superuser, login_url='/login/')
+@user_passes_test(is_staff_or_superuser, login_url='/')
 def dashAddClient(request):
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':  # Detecta Fetch API
         return render(request, "dash/pages/users/dashAddClient.html")
     return render(request, "dash/baseHome.html", {"content_template": "dash/pages/users/dashAddClient.html"})
 
-@user_passes_test(is_staff_or_superuser, login_url='/login/')
+@user_passes_test(is_staff_or_superuser, login_url='/')
 def profileClient(request, idCliente):
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':  # Detecta Fetch API
         return render(request, "dash/pages/users/profileClient.html", {"idCliente": idCliente})
@@ -519,13 +639,13 @@ def profileClient(request, idCliente):
     })
 
 # PEDIDOS
-@user_passes_test(is_staff_or_superuser, login_url='/login/')
+@user_passes_test(is_staff_or_superuser, login_url='/')
 def dashAllPedido(request):
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':  # Detecta Fetch API
         return render(request, "dash/pages/pedidos/allPedidos.html")
     return render(request, "dash/baseHome.html", {"content_template": "dash/pages/pedidos/allPedidos.html"})
 
-@user_passes_test(is_staff_or_superuser, login_url='/login/')
+@user_passes_test(is_staff_or_superuser, login_url='/')
 def dashAddPedido(request):
     idCliente = request.GET.get('id')  # Puede ser None si no viene
 
@@ -540,13 +660,13 @@ def dashAddPedido(request):
     return render(request, "dash/baseHome.html", context)
 
 
-@user_passes_test(is_staff_or_superuser, login_url='/login/')
+@user_passes_test(is_staff_or_superuser, login_url='/')
 def dashDetallePedido(request):
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':  # Detecta Fetch API
         return render(request, "dash/pages/pedidos/detallePedido.html")
     return render(request, "dash/baseHome.html", {"content_template": "dash/pages/pedidos/detallePedido.html"})
 
-@user_passes_test(is_staff_or_superuser, login_url='/login/')
+@user_passes_test(is_staff_or_superuser, login_url='/')
 def dashPedidoCliente(request):
     idCliente = request.GET.get('id')
 

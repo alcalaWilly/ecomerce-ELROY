@@ -6,11 +6,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const talla = await obtenerTallas();
 
-        console.log("LAS tallaaaaaaaaa:", talla);
+        // console.log("LAS tallaaaaaaaaa:", talla);
 
         await cargarFiltrosProducto();
         addImg();
         validarInputsDePrecio();
+        inicializarNameDescriptionDraft();
         activarSelectorTallaColor();
         await inicializarAgregarTallas();
         inicializarSelectorDeColor();
@@ -21,6 +22,30 @@ document.addEventListener("DOMContentLoaded", async () => {
         console.log("🟡 No estás en /dash-addProduct/");
     }
 });
+
+// ✅ Este será TU ARRAY como en la imagen
+const productDraft = [
+  {
+    category: null,
+    season: null,
+    colors: [],
+    promotions: [],
+    images: [],
+    tallas: [],
+    name: "",
+    description: "",
+    price: null,
+    stock: 0,
+  }
+];
+
+let metodoInventario = "tallas"; // "tallas" | "colores
+
+function logDraft(titulo = "📦 PRODUCT DRAFT") {
+  console.group(titulo);
+  console.log(productDraft);
+  console.groupEnd();
+}
 
 // const baseUrl = document.body.dataset.apiUrl;
 async function obtenerTemporadas() {
@@ -65,56 +90,143 @@ async function obtenerTallas() {
 }
 
 async function cargarFiltrosProducto() {
-    const seasonSelect = document.querySelector(".seasonSelect");
-    const categorySelect = document.querySelector(".categorySelect");
+  const seasonSelect = document.querySelector(".seasonSelect");
+  const categorySelect = document.querySelector(".categorySelect");
 
-    if (!seasonSelect || !categorySelect) {
-        console.warn("No se encontraron los elementos <select> para temporadas o categorías.");
-        return;
-    }
+  if (!seasonSelect || !categorySelect) {
+    console.warn("No se encontraron los elementos <select> para temporadas o categorías.");
+    return;
+  }
 
-    // Obtener datos
-    const temporadas = await obtenerTemporadas();
-    const categorias = await obtenerCategorias();
+  // Obtener datos
+  const temporadas = await obtenerTemporadas();
+  const categorias = await obtenerCategorias();
 
-    console.log("LAS temporadassss:", temporadas);
-    console.log("LAS CATEGORIAAAAAS:", categorias);
+  // Limpiar selects
+  seasonSelect.innerHTML = '<option value="">Selecciona temporada</option>';
+  categorySelect.innerHTML = '<option value="">Selecciona categoría</option>';
 
-    // Limpiar selects
-    seasonSelect.innerHTML = '<option value="">Selecciona temporada</option>';
-    categorySelect.innerHTML = '<option value="">Selecciona categoría</option>';
+  // Llenar temporadas
+  temporadas.forEach(temp => {
+    const option = document.createElement("option");
+    option.value = temp.id;
+    option.textContent = temp.name || `Temporada ${temp.id}`;
+    seasonSelect.appendChild(option);
+  });
 
-    // Llenar temporadas
-    temporadas.forEach(temp => {
-        const option = document.createElement("option");
-        option.value = temp.id;
-        option.textContent = temp.name || `Temporada ${temp.id}`;
-        seasonSelect.appendChild(option);
-    });
+  // Llenar categorías
+  categorias.forEach(cat => {
+    const option = document.createElement("option");
+    option.value = cat.id;
+    option.textContent = cat.name || `Categoría ${cat.id}`;
+    categorySelect.appendChild(option);
+  });
 
-    // Llenar categorías
-    categorias.forEach(cat => {
-        const option = document.createElement("option");
-        option.value = cat.id;
-        option.textContent = cat.name || `Categoría ${cat.id}`;
-        categorySelect.appendChild(option);
-    });
+  // ✅ IMPORTANTE: evitar duplicar listeners si la función se llama más de 1 vez
+  seasonSelect.onchange = () => {
+    const id = seasonSelect.value ? Number(seasonSelect.value) : null;
+    console.log("🟡 Temporada seleccionada:", { id });
+    updateDraft("season", id); // 🔥 guarda en el array
+  };
 
-    // 🔁 Mostrar en consola lo seleccionado
-    seasonSelect.addEventListener("change", () => {
-        const selectedOption = seasonSelect.options[seasonSelect.selectedIndex];
-        console.log("🟡 Temporada seleccionada:", {
-            id: seasonSelect.value
-        });
-    });
+  categorySelect.onchange = () => {
+    const id = categorySelect.value ? Number(categorySelect.value) : null;
+    console.log("🔵 Categoría seleccionada:", { id });
+    updateDraft("category", id); // 🔥 guarda en el array
+  };
 
-    categorySelect.addEventListener("change", () => {
-        const selectedOption = categorySelect.options[categorySelect.selectedIndex];
-        console.log("🔵 Categoría seleccionada:", {
-            id: categorySelect.value
-        });
-    });
+  // ✅ Guardar estado inicial (si ya hay valores por defecto)
+  updateDraft("season", seasonSelect.value ? Number(seasonSelect.value) : null);
+  updateDraft("category", categorySelect.value ? Number(categorySelect.value) : null);
 }
+
+function updateDraft(field, value) {
+  productDraft[0][field] = value;
+
+  console.group("🧩 DRAFT ACTUALIZADO");
+  console.log(`✅ ${field}:`, value);
+  console.log("📦 productDraft:", productDraft);
+  console.groupEnd();
+}
+
+// function addImg() {
+//     const fileInput = document.querySelector(".product-image");
+//     const previewContainer = document.querySelector(".image-preview");
+//     const warningMessage = document.getElementById("image-warning");
+
+//     let uploadedImg = [];
+//     let imagenesUrls = [];
+
+//     if (!fileInput || !previewContainer) {
+//         console.warn("⚠️ No se encontró el input o el contenedor de previsualización.");
+//         return;
+//     }
+
+//     fileInput.addEventListener("change", function () {
+//         if (!fileInput.files.length) return;
+
+//         let newFiles = Array.from(fileInput.files);
+//         let totalImages = uploadedImg.length + newFiles.length;
+
+//         if (totalImages > 6) {
+//             warningMessage.textContent = "Solo puedes subir hasta 6 imágenes.";
+//             setTimeout(() => warningMessage.textContent = "", 3000);
+//             newFiles = newFiles.slice(0, 6 - uploadedImg.length);
+//         }
+
+//         newFiles.forEach(file => {
+//             const reader = new FileReader();
+
+//             reader.onload = function (e) {
+//                 const base64 = e.target.result;
+
+//                 uploadedImg.push(file);
+//                 imagenesUrls.push({ url: base64 });
+
+//                 const imageWrapper = document.createElement("div");
+//                 imageWrapper.classList.add("position-relative", "m-1");
+//                 imageWrapper.style.display = "inline-block";
+
+//                 const img = document.createElement("img");
+//                 img.src = base64;
+//                 img.classList.add("img-thumbnail");
+//                 img.style.width = "100px";
+//                 img.style.height = "100px";
+
+//                 const closeButton = document.createElement("button");
+//                 closeButton.innerHTML = "&times;";
+//                 closeButton.classList.add("btn", "btn-danger", "btn-sm", "position-absolute");
+//                 closeButton.style.top = "5px";
+//                 closeButton.style.right = "5px";
+
+//                 closeButton.addEventListener("click", function () {
+//                     imageWrapper.remove();
+//                     const index = uploadedImg.indexOf(file);
+//                     if (index !== -1) {
+//                         uploadedImg.splice(index, 1);
+//                         imagenesUrls.splice(index, 1);
+//                     }
+//                     mostrarArchivosConsola();
+//                 });
+
+//                 imageWrapper.appendChild(img);
+//                 imageWrapper.appendChild(closeButton);
+//                 previewContainer.appendChild(imageWrapper);
+
+//                 mostrarArchivosConsola();
+//             };
+
+//             reader.readAsDataURL(file);
+//         });
+
+//         fileInput.value = "";
+//     });
+
+//     function mostrarArchivosConsola() {
+//         //console.clear();
+//         console.log("imagenes:", imagenesUrls);
+//     }
+// }
 
 function addImg() {
     const fileInput = document.querySelector(".product-image");
@@ -122,14 +234,13 @@ function addImg() {
     const warningMessage = document.getElementById("image-warning");
 
     let uploadedImg = [];
-    let imagenesUrls = [];
 
     if (!fileInput || !previewContainer) {
-        console.warn("⚠️ No se encontró el input o el contenedor de previsualización.");
+        console.warn("⚠️ No se encontró el input o el contenedor.");
         return;
     }
 
-    fileInput.addEventListener("change", function () {
+    fileInput.onchange = function () {
         if (!fileInput.files.length) return;
 
         let newFiles = Array.from(fileInput.files);
@@ -148,7 +259,10 @@ function addImg() {
                 const base64 = e.target.result;
 
                 uploadedImg.push(file);
-                imagenesUrls.push({ url: base64 });
+
+                // 🔥 Guardar directamente en el array global
+                productDraft[0].images.push({ url: base64 });
+                validarBotonCrear();
 
                 const imageWrapper = document.createElement("div");
                 imageWrapper.classList.add("position-relative", "m-1");
@@ -168,112 +282,274 @@ function addImg() {
 
                 closeButton.addEventListener("click", function () {
                     imageWrapper.remove();
+
                     const index = uploadedImg.indexOf(file);
                     if (index !== -1) {
                         uploadedImg.splice(index, 1);
-                        imagenesUrls.splice(index, 1);
+                        productDraft[0].images.splice(index, 1); // 🔥 eliminar del array global
                     }
-                    mostrarArchivosConsola();
+
+                    console.group("🖼️ IMÁGENES ACTUALIZADAS");
+                    console.log(productDraft);
+                    console.groupEnd();
                 });
 
                 imageWrapper.appendChild(img);
                 imageWrapper.appendChild(closeButton);
                 previewContainer.appendChild(imageWrapper);
 
-                mostrarArchivosConsola();
+                console.group("🖼️ IMÁGENES ACTUALIZADAS");
+                console.log(productDraft);
+                console.groupEnd();
             };
 
             reader.readAsDataURL(file);
         });
 
         fileInput.value = "";
-    });
-
-    function mostrarArchivosConsola() {
-        //console.clear();
-        console.log("imagenes:", imagenesUrls);
-    }
+    };
 }
+
+// function activarSelectorTallaColor() {
+//     const btnTalla = document.querySelector(".metodo_codigo");
+//     const btnColor = document.querySelector(".metodo_automatico");
+//     const cardTallas = document.getElementById("cardTallas");
+//     const cardColores = document.getElementById("cardColores");
+//     const tbodyTallas = document.querySelector("#cardTallas tbody");
+//     const tbodyColores = document.querySelector(".tbodyColores");
+
+//     if (!btnTalla || !btnColor || !cardTallas || !cardColores) {
+//         console.warn("⚠️ Elementos necesarios no encontrados");
+//         return;
+//     }
+
+//     btnTalla.addEventListener("click", function () {
+//         btnTalla.classList.add("active");
+//         btnColor.classList.remove("active");
+//         cardTallas.classList.remove("d-none");
+//         cardColores.classList.add("d-none");
+
+//         // Limpiar colores
+//         if (tbodyColores) tbodyColores.innerHTML = "";
+//         coloresUsados?.clear?.();
+
+//         // Resetear contadores
+//         actualizarTotalInventarioColores();
+//         actualizarTotalInventarioTallas();
+
+//         // Simular “limpiar consola” de colores
+//         console.log("🔄 Cambio a modo TALLAS");
+//         console.log("🧹 Limpiando resumen de colores...");
+//         console.log("----------------------------");
+//     });
+
+//     btnColor.addEventListener("click", function () {
+//         btnColor.classList.add("active");
+//         btnTalla.classList.remove("active");
+//         cardColores.classList.remove("d-none");
+//         cardTallas.classList.add("d-none");
+
+//         // Limpiar tallas
+//         if (tbodyTallas) tbodyTallas.innerHTML = "";
+//         tallasUsadas?.clear?.();
+
+//         // Resetear contadores
+//         actualizarTotalInventarioTallas();
+//         actualizarTotalInventarioColores();
+
+//         // Simular “limpiar consola” de tallas
+//         console.log("🔄 Cambio a modo COLORES");
+//         console.log("🧹 Limpiando resumen de tallas...");
+//         console.log("----------------------------");
+//     });
+// }
 
 function activarSelectorTallaColor() {
-    const btnTalla = document.querySelector(".metodo_codigo");
-    const btnColor = document.querySelector(".metodo_automatico");
-    const cardTallas = document.getElementById("cardTallas");
-    const cardColores = document.getElementById("cardColores");
-    const tbodyTallas = document.querySelector("#cardTallas tbody");
-    const tbodyColores = document.querySelector(".tbodyColores");
+  const btnTalla = document.querySelector(".metodo_codigo");
+  const btnColor = document.querySelector(".metodo_automatico");
+  const cardTallas = document.getElementById("cardTallas");
+  const cardColores = document.getElementById("cardColores");
+  const tbodyTallas = document.querySelector("#cardTallas tbody");
+  const tbodyColores = document.querySelector(".tbodyColores");
 
-    if (!btnTalla || !btnColor || !cardTallas || !cardColores) {
-        console.warn("⚠️ Elementos necesarios no encontrados");
-        return;
-    }
+  if (!btnTalla || !btnColor || !cardTallas || !cardColores) {
+    console.warn("⚠️ Elementos necesarios no encontrados");
+    return;
+  }
 
-    btnTalla.addEventListener("click", function () {
-        btnTalla.classList.add("active");
-        btnColor.classList.remove("active");
-        cardTallas.classList.remove("d-none");
-        cardColores.classList.add("d-none");
+  btnTalla.addEventListener("click", function () {
+    metodoInventario = "tallas";
 
-        // Limpiar colores
-        if (tbodyColores) tbodyColores.innerHTML = "";
-        coloresUsados?.clear?.();
+    btnTalla.classList.add("active");
+    btnColor.classList.remove("active");
+    cardTallas.classList.remove("d-none");
+    cardColores.classList.add("d-none");
 
-        // Resetear contadores
-        actualizarTotalInventarioColores();
-        actualizarTotalInventarioTallas();
+    // 🧹 Limpiar UI de colores
+    if (tbodyColores) tbodyColores.innerHTML = "";
+    coloresUsados?.clear?.();
 
-        // Simular “limpiar consola” de colores
-        console.log("🔄 Cambio a modo TALLAS");
-        console.log("🧹 Limpiando resumen de colores...");
-        console.log("----------------------------");
-    });
+    // ✅ Draft: colores vacío
+    productDraft[0].colors = [];
 
-    btnColor.addEventListener("click", function () {
-        btnColor.classList.add("active");
-        btnTalla.classList.remove("active");
-        cardColores.classList.remove("d-none");
-        cardTallas.classList.add("d-none");
+    // ✅ Draft: recalcular stock desde tallas (si hay tallas cargadas)
+    syncTallasToDraft(); // si no hay tallas, stock queda 0
 
-        // Limpiar tallas
-        if (tbodyTallas) tbodyTallas.innerHTML = "";
-        tallasUsadas?.clear?.();
+    actualizarTotalInventarioColores();
+    actualizarTotalInventarioTallas();
 
-        // Resetear contadores
-        actualizarTotalInventarioTallas();
-        actualizarTotalInventarioColores();
+    console.log("🔄 Cambio a modo TALLAS");
+    logDraft("🧩 DRAFT (modo TALLAS)");
+  });
 
-        // Simular “limpiar consola” de tallas
-        console.log("🔄 Cambio a modo COLORES");
-        console.log("🧹 Limpiando resumen de tallas...");
-        console.log("----------------------------");
-    });
+  btnColor.addEventListener("click", function () {
+    metodoInventario = "colores";
+
+    btnColor.classList.add("active");
+    btnTalla.classList.remove("active");
+    cardColores.classList.remove("d-none");
+    cardTallas.classList.add("d-none");
+
+    // 🧹 Limpiar UI de tallas
+    if (tbodyTallas) tbodyTallas.innerHTML = "";
+    tallasUsadas?.clear?.();
+
+    // ✅ Draft: tallas vacío
+    productDraft[0].tallas = [];
+
+    // ✅ IMPORTANTE: también limpia coloresUsados si estás reiniciando el modo
+    // (opcional, pero recomendable para evitar inconsistencias)
+    coloresUsados?.clear?.();
+
+    // ✅ Draft: recalcular stock desde colores (si hay colores cargados)
+    syncColoresToDraft(); // si no hay colores, stock queda 0
+
+    actualizarTotalInventarioTallas();
+    actualizarTotalInventarioColores();
+
+    console.log("🔄 Cambio a modo COLORES");
+    logDraft("🧩 DRAFT (modo COLORES)");
+  });
 }
 
+function syncTallasToDraft() {
+  const filas = document.querySelectorAll("#tbodyTallas tr");
+  const tallas = [];
+  let stockTotal = 0;
+
+  filas.forEach(fila => {
+    const idTalla = Number(fila.getAttribute("data-id-talla"));
+    const inputCantidad = fila.querySelector(".cantidadTabla");
+    const stock = parseInt(inputCantidad?.value, 10) || 0;
+
+    if (!Number.isFinite(idTalla)) return;
+    if (stock < 0) return;
+
+    stockTotal += stock;
+    tallas.push({ talla: idTalla, stock });
+  });
+
+  // ✅ modo tallas: actualiza draft
+  productDraft[0].tallas = tallas;
+  validarBotonCrear();
+  productDraft[0].colors = [];      // 🔥 vacía colores
+  productDraft[0].stock = stockTotal;
+
+  console.log("📦 Stock total (tallas):", stockTotal);
+  console.log("📏 Tallas:", tallas);
+  console.log("🎨 Colores:", productDraft[0].colors);
+
+  logDraft("✅ DRAFT ACTUALIZADO (modo TALLAS)");
+}
+
+// function validarInputsDePrecio() {
+//     const inputs = document.querySelectorAll(".precioInput");
+
+//     inputs.forEach(input => {
+//         // Permitir solo números y punto (.)
+//         input.addEventListener("input", (e) => {
+//             e.target.value = e.target.value
+//                 .replace(/[^\d.]/g, "")      // Elimina todo excepto números y punto
+//                 .replace(/^0+(\d)/, "$1")   // Elimina ceros iniciales (opcional)
+//                 .replace(/(\..*?)\..*/g, "$1"); // Evita más de un punto
+//         });
+
+//         // Formatear a 2 decimales al salir
+//         input.addEventListener("blur", (e) => {
+//             let valor = parseFloat(e.target.value);
+//             if (!isNaN(valor)) {
+//                 const valorFormateado = valor.toFixed(2);
+//                 e.target.value = valorFormateado;
+//                 console.log("💰 Precio ingresado:", valorFormateado);
+//             } else {
+//                 e.target.value = "";
+//                 console.log("❌ Entrada inválida");
+//             }
+//         });
+//     });
+// }
+
 function validarInputsDePrecio() {
-    const inputs = document.querySelectorAll(".precioInput");
+  const inputs = document.querySelectorAll(".precioInput");
 
-    inputs.forEach(input => {
-        // Permitir solo números y punto (.)
-        input.addEventListener("input", (e) => {
-            e.target.value = e.target.value
-                .replace(/[^\d.]/g, "")      // Elimina todo excepto números y punto
-                .replace(/^0+(\d)/, "$1")   // Elimina ceros iniciales (opcional)
-                .replace(/(\..*?)\..*/g, "$1"); // Evita más de un punto
-        });
-
-        // Formatear a 2 decimales al salir
-        input.addEventListener("blur", (e) => {
-            let valor = parseFloat(e.target.value);
-            if (!isNaN(valor)) {
-                const valorFormateado = valor.toFixed(2);
-                e.target.value = valorFormateado;
-                console.log("💰 Precio ingresado:", valorFormateado);
-            } else {
-                e.target.value = "";
-                console.log("❌ Entrada inválida");
-            }
-        });
+  inputs.forEach(input => {
+    // Permitir solo números y punto
+    input.addEventListener("input", (e) => {
+      e.target.value = e.target.value
+        .replace(/[^\d.]/g, "")
+        .replace(/^0+(\d)/, "$1")
+        .replace(/(\..*?)\..*/g, "$1");
     });
+
+    // Formatear a 2 decimales al salir
+    input.addEventListener("blur", (e) => {
+      let valor = parseFloat(e.target.value);
+
+      if (!isNaN(valor)) {
+        const valorFormateado = Number(valor.toFixed(2));
+        e.target.value = valorFormateado.toFixed(2);
+
+        // ✅ Guardar en tu array
+        productDraft[0].price = valorFormateado;
+        validarBotonCrear();
+
+        console.log("💰 Precio guardado en draft:", valorFormateado);
+        console.log("📦 productDraft:", productDraft);
+      } else {
+        e.target.value = "";
+        productDraft[0].price = null;
+
+        console.log("❌ Entrada inválida, price=null");
+        console.log("📦 productDraft:", productDraft);
+      }
+    });
+  });
+}
+
+function inicializarNameDescriptionDraft() {
+  const nameInput = document.getElementById("nameProduct");
+  const descInput = document.getElementById("descripProduct");
+
+  if (!nameInput || !descInput) {
+    console.warn("⚠️ No se encontraron nameProduct o descripProduct");
+    return;
+  }
+
+  // ✅ Guardar nombre en tiempo real
+  nameInput.addEventListener("input", () => {
+    productDraft[0].name = nameInput.value.trim();
+    validarBotonCrear();
+    console.log("📝 Name actualizado:", productDraft[0].name);
+    console.log("📦 productDraft:", productDraft);
+  });
+
+  // ✅ Guardar descripción en tiempo real
+  descInput.addEventListener("input", () => {
+    productDraft[0].description = descInput.value.trim();
+    validarBotonCrear();
+    console.log("🧾 Description actualizado:", productDraft[0].description);
+    console.log("📦 productDraft:", productDraft);
+  });
 }
 
 let tallasDisponibles = []; // Se llena desde la API
@@ -328,7 +604,7 @@ async function inicializarAgregarTallas() {
         const inputCantidad = fila.querySelector(".cantidadTabla");
         inputCantidad.addEventListener("input", () => {
             actualizarTotalInventarioTallas();
-            mostrarResumenTallas(); // 👈 Mostrar resumen cada vez que cambia
+            syncTallasToDraft(); // 👈 Mostrar resumen cada vez que cambia
         });
 
         // Event: eliminar fila
@@ -337,11 +613,11 @@ async function inicializarAgregarTallas() {
             fila.remove();
             tallasUsadas.delete(talla.id);
             actualizarTotalInventarioTallas();
-            mostrarResumenTallas(); // 👈 Mostrar resumen cada vez que se elimina
+            syncTallasToDraft(); // 👈 Mostrar resumen cada vez que se elimina
         });
 
         actualizarTotalInventarioTallas();
-        mostrarResumenTallas(); // 👈 Mostrar resumen al agregar
+        syncTallasToDraft(); // 👈 Mostrar resumen al agregar
     });
 }
 
@@ -489,7 +765,7 @@ function inicializarAgregarColores() {
         const inputCantidad = fila.querySelector(".cantidadTabla");
         inputCantidad.addEventListener("input", () => {
             actualizarTotalInventarioColores();
-            mostrarResumenColores(); // 👈 resumen por consola
+            syncColoresToDraft(); // 🔥
         });
 
         // Eliminar
@@ -497,12 +773,12 @@ function inicializarAgregarColores() {
         btnEliminar.addEventListener("click", () => {
             fila.remove();
             actualizarTotalInventarioColores();
-            mostrarResumenColores();
+            syncColoresToDraft(); // 🔥
         });
 
         inicializarSelectorDeColor?.();
         actualizarTotalInventarioColores();
-        mostrarResumenColores();
+        syncColoresToDraft();
     });
 }
 
@@ -542,6 +818,37 @@ function mostrarResumenColores() {
     console.log("🎨 tallas:", tallas);
 }
 
+function syncColoresToDraft() {
+  const filas = document.querySelectorAll("#cardColores tbody tr");
+  const colores = [];
+  let stockTotal = 0;
+
+  filas.forEach(fila => {
+    const color = (fila.getAttribute("data-color") || "#000000").trim();
+    const inputCantidad = fila.querySelector(".cantidadTabla");
+    const stock = parseInt(inputCantidad?.value, 10) || 0;
+
+    if (stock < 0) return;
+
+    stockTotal += stock;
+    colores.push({ color, stock });
+  });
+
+  // ✅ Modo colores: actualiza draft
+  productDraft[0].colors = colores;
+  validarBotonCrear();
+  productDraft[0].tallas = [];   // 🔥 vacía tallas
+  productDraft[0].stock = stockTotal;
+
+  console.log("🎨 Stock total (colores):", stockTotal);
+  console.log("🎨 Colores:", colores);
+  console.log("📏 Tallas:", productDraft[0].tallas);
+
+  console.group("🧩 DRAFT ACTUALIZADO (modo COLORES)");
+  console.log(productDraft);
+  console.groupEnd();
+}
+
 function inicializarBotonesEliminarColor() {
     const botones = document.querySelectorAll(".btnEliminarColor");
 
@@ -556,5 +863,146 @@ function inicializarBotonesEliminarColor() {
     }
 }
 
+function validarBotonCrear() {
+  const btn = document.getElementById("addProducto");
+  if (!btn) return;
+
+  const draft = productDraft[0];
+
+  const valido =
+    draft.name &&
+    draft.description &&
+    draft.category &&
+    draft.season &&
+    draft.price &&
+    draft.images.length > 0 &&
+    draft.stock > 0;
+
+  btn.disabled = !valido;
+}
+
+function getFinalPayload() {
+  const draft = productDraft[0];
+
+  // ✅ validaciones mínimas
+  if (!draft.name) throw new Error("Falta el nombre.");
+  if (!draft.description) throw new Error("Falta la descripción.");
+  if (!draft.category) throw new Error("Falta la categoría.");
+  if (!draft.season) throw new Error("Falta la temporada.");
+  if (draft.price === null || draft.price <= 0) throw new Error("Precio inválido.");
+  if (!draft.images || draft.images.length === 0) throw new Error("Sube al menos 1 imagen.");
+  if (draft.stock <= 0) throw new Error("El stock debe ser mayor a 0.");
+
+  // ✅ regla: o tallas o colores (no ambos)
+  const tieneTallas = draft.tallas && draft.tallas.length > 0;
+  const tieneColores = draft.colors && draft.colors.length > 0;
+  if (tieneTallas && tieneColores) throw new Error("No puede haber tallas y colores a la vez.");
+  if (!tieneTallas && !tieneColores) throw new Error("Debes agregar tallas o colores.");
+
+  // ✅ payload final (objeto)
+  const payload = {
+    category: draft.category,
+    colors: draft.colors || [],
+    description: draft.description,
+    imagenes: draft.images || [],
+    name: draft.name,
+    price: draft.price,
+    promotions: draft.promotions || [],
+    season: draft.season,
+    stock: draft.stock,
+    tallas: draft.tallas || [],
+  };
+
+  // ✅ si quieres ver “lo final” en consola:
+  console.group("✅ PAYLOAD FINAL");
+  console.log(payload);
+  console.groupEnd();
+
+  return payload;
+}
+
+// Si tu backend quiere array (como la imagen)
+function getFinalPayloadArray() {
+  const payload = getFinalPayload();
+  return [payload];
+}
 
 
+document.getElementById("addProducto")?.addEventListener("click", async (e) => {
+  e.preventDefault();
+
+  const token = localStorage.getItem("access_token");
+  if (!token) {
+    Swal.fire({
+      icon: "warning",
+      title: "No autenticado",
+      text: "Debes iniciar sesión primero.",
+    });
+    return;
+  }
+
+  try {
+    const draft = productDraft[0];
+
+    const payload = {
+      category: draft.category,
+      colors: draft.colors || [],
+      description: draft.description,
+      imagenes: draft.images || [],
+      name: draft.name,
+      price: draft.price,
+      promotions: draft.promotions || [],
+      season: draft.season,
+      stock: draft.stock,
+      tallas: draft.tallas || [],
+    };
+
+    const baseUrl = document.body?.dataset?.apiUrl || window.location.origin;
+
+    // 🔄 Loader mientras envía
+    Swal.fire({
+      title: "Creando producto...",
+      text: "Por favor espera",
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      }
+    });
+
+    const response = await fetch(`${baseUrl}/save_product/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(data?.detail || data?.message || "Error al crear producto.");
+    }
+
+    // ✅ Éxito
+    await Swal.fire({
+      icon: "success",
+      title: "Producto creado ✔",
+      text: "El producto se guardó correctamente.",
+      confirmButtonText: "Aceptar"
+    });
+
+    // 🔁 Redirigir después de cerrar el Swal
+    window.location.href = "/dash-allProducts/";
+
+  } catch (err) {
+    console.error("❌ Error:", err.message);
+
+    Swal.fire({
+      icon: "error",
+      title: "Error",
+      text: err.message || "Ocurrió un error inesperado.",
+      confirmButtonText: "Cerrar"
+    });
+  }
+});

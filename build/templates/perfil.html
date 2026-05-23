@@ -1,16 +1,21 @@
+
 <div class="containerTablePedido">
-    <div class="cerrarProfile" id="closeSesion" data-logout-url="{% url 'logout' %}">
+    <!-- <div class="cerrarProfile" id="closeSesion" data-logout-url="{% url 'logout' %}">
         <i class="bx bx-log-out"></i>
         <span>Cerrar sesión</span>
-    </div>
+    </div> -->
+    {% load static %}
     <div class="boxProfile">
         <img class="imageProfile"
-            src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTNgwRusbCDZfCIMrfXP0vziWPEqlEvhCb1mg&s"
-            alt="mashmelo">
-        <h2 class="card-title">Willy Alcala</h2>
+            src="{% if user.profile_picture %}{{ user.profile_picture }}{% else %}{% static 'img/default-profile.png' %}{% endif %}"
+            alt="Perfil">
+
+        <h2 class="card-title">
+            {{ user.first_name }} {{ user.last_name }}
+        </h2>
     </div>
     <div class="profile__date">
-        <div class="checkout__date-info">
+        <!-- <div class="checkout__date-info">
             <div class="input-profile">
                 <input type="text" id="nombreOr" class="checkbox-inputs" required>
                 <label for="nombre" class="profile-labels">NOMBRES</label>
@@ -23,7 +28,7 @@
         <div class="input-profile">
             <input type="text" id="gmail" class="checkbox-inputs" disabled>
             <label for="gmail" class="profile-labels">CORREO</label>
-        </div>
+        </div> -->
         <div class="input-profile">
             <input type="text" id="dniOr" class="checkbox-inputs" required>
             <label for="dni" class="profile-labels">DNI/RUC</label>
@@ -57,51 +62,3 @@
         </div>
     </div>
 </div>
-<!-- <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        // Seleccionar el botón de cerrar sesión por ID
-        const logoutButton = document.getElementById("closeSesion");
-
-        if (logoutButton) {
-            logoutButton.addEventListener("click", function (e) {
-                e.preventDefault();
-
-                fetch("{% url 'logout' %}", {
-                    method: "POST",
-                    credentials: "same-origin",
-                    headers: {
-                        "X-Requested-With": "XMLHttpRequest",
-                        "Content-Type": "application/json"
-                    }
-                })
-                    .then(resp => {
-                        if (!resp.ok) throw new Error("Logout falló");
-                        return resp.json();
-                    })
-                    .then(() => {
-                        localStorage.clear();
-                        window.location.replace("{% url 'index' %}");
-                    })
-                    .catch(err => {
-                        console.error(err);
-                        alert("No se pudo cerrar sesión. Intenta de nuevo.");
-                    });
-            });
-        }
-
-        // Evitar volver atrás manualmente (historial)
-        history.pushState(null, null, location.href);
-        window.addEventListener('popstate', function () {
-            history.pushState(null, null, location.href);
-        });
-
-        // Detectar navegación atrás o restauración desde caché
-        window.addEventListener('pageshow', function (event) {
-            if (event.persisted || (performance.getEntriesByType("navigation")[0]?.type === "back_forward")) {
-                console.log("Detectado navegación hacia atrás usando caché, redirigiendo...");
-                window.location.replace("{% url 'index' %}");
-            }
-        });
-    });
-
-</script> -->

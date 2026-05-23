@@ -181,7 +181,7 @@ CSRF_COOKIE_HTTPONLY = False  # Asegura que JS pueda leer la cookie
 CSRF_COOKIE_SAMESITE = "Lax"  # Permitir envío de CSRF desde el mismo sitio
 
 # # Evita la verificación de `state`
-SOCIAL_AUTH_REDIRECT_IS_HTTPS = True
+SOCIAL_AUTH_REDIRECT_IS_HTTPS = False
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 USE_X_FORWARDED_HOST = True
 # SOCIAL_AUTH_SANITIZE_REDIRECTS = False
@@ -289,7 +289,9 @@ SOCIAL_AUTH_PIPELINE = (
     'social_core.pipeline.user.create_user',
     'social_core.pipeline.social_auth.associate_user',
     'social_core.pipeline.social_auth.load_extra_data',
+    # AGREGANDOOOO
     'social_core.pipeline.user.user_details',
+    'apps.user.pipeline.save_google_provider',
     # 'social_core.pipeline.user.activate_user',
 )
 
@@ -378,12 +380,14 @@ DJOSER = {
         ],
     'SERIALIZERS': {
         'user_create': 'apps.user.serializers.UserCreateSerializer',
-        'user': 'apps.user.serializers.UserCreateSerializer',
-        'current_user': 'apps.user.serializers.UserCreateSerializer',
+        'user': 'apps.user.serializers.UserSerializer',
+        'current_user': 'apps.user.serializers.UserSerializer',
         'user_delete': 'djoser.serializers.UserDeleteSerializer',
     },
 }
 
+SITE_NAME = os.environ.get('SITE_NAME')
+DOMAIN = os.environ.get('DOMAIN')
 AUTH_USER_MODEL = 'user.UserAccount'
 
 # PARA LOS PAGO

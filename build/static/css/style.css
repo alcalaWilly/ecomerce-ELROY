@@ -3971,7 +3971,6 @@ textarea {
     border-top: 2px solid #0003;
     height: 60%;
     overflow-y: auto;
-    /* Activa el scroll vertical */
     border-bottom: 2px solid #0003;
 }
 
@@ -4071,14 +4070,46 @@ textarea {
     column-gap: 1rem;
 }
 
-.cart__amount-box {
+/* .cart__amount-box {
     display: inline-flex;
     padding: .25rem;
     background-color: var(--container-color);
     cursor: pointer;
+} */
+
+.cart__amount-box i,
+.cart__amount-trash {
+    transition: transform 0.2s ease, color 0.2s ease;
 }
 
-.cart__amount-trash {
+/* Estado base */
+.cart__amount-box i {
+    color: var(--text-color);
+}
+
+/* Hover TODOS (minus, plus, trash) */
+.cart__amount-box:hover i,
+.cart__amount-trash:hover {
+    color: #000;
+    transform: scale(1.2); /* 👈 efecto suave SIN romper layout */
+    cursor: pointer;
+}
+
+.cart__amount-box {
+    border-radius: 4px;
+    transition: background 0.2s ease;
+}
+
+.cart__amount-box:hover {
+    background: #f5f5f5;
+}
+
+.cart__amount-box:active i,
+.cart__amount-trash:active {
+    transform: scale(0.9);
+}
+
+/* .cart__amount-trash {
     font-size: 1.25rem;
     color: #73252f;
     cursor: pointer;
@@ -4086,10 +4117,9 @@ textarea {
 }
 
 .cart__amount-trash:hover {
-    /* transform: rotate(360deg); */
     color: #000;
     font-size: 2rem;
-}
+} */
 
 .cart__prices {
     margin-top: 2rem;

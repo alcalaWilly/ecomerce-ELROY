@@ -1,0 +1,38 @@
+<form style="display:none;">{% csrf_token %}</form>
+<script>
+  (async function () {
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    const resp = await fetch("/api/jwt-from-session/", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        "X-CSRFToken": csrfToken,
+        "X-Requested-With": "XMLHttpRequest",
+      }
+    });
+
+    if (!resp.ok) {
+      window.location.replace("/login/");
+      return;
+    }
+
+    const data = await resp.json();
+
+    localStorage.setItem("access_token", data.access_token);
+    localStorage.setItem("refresh_token", data.refresh_token);
+
+    localStorage.setItem("email", data.email || "");
+    localStorage.setItem("first_name", data.first_name || "");
+    localStorage.setItem("last_name", data.last_name || "");
+    localStorage.setItem("cod_postal", data.codPostal || "");
+    localStorage.setItem("ciudad", data.ciudad || "");
+    localStorage.setItem("direccion", data.direccion || "");
+    localStorage.setItem("region", data.region || "");
+    localStorage.setItem("ruc", data.ruc || "");
+    localStorage.setItem("telefono", data.telefono || "");
+
+    // ✅ forzar recarga real
+    window.location.href = "/perfil/?r=" + Date.now();
+  })();
+</script>

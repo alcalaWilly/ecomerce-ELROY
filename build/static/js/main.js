@@ -26,34 +26,37 @@ if (navClose) {
 
 /*=============== SHOW CART ===============*/
 const cart = document.getElementById('cart'),
-  cartShop = document.getElementById('cart-shop'),
-  cartClose = document.getElementById('cart-close');
+cartShop = document.getElementById('cart-shop'),
+cartClose = document.getElementById('cart-close');
 
 /*===== CART SHOW =====*/
-/* Validate if constant exists */
 if (cartShop) {
   cartShop.addEventListener("click", () => {
     cart.classList.toggle('show-cart');
 
-    // Si el carrito se muestra, deshabilita el scroll de la página principal
     if (cart.classList.contains('show-cart')) {
       document.body.style.overflow = 'hidden';
     } else {
-      document.body.style.overflow = ''; // Restaura el scroll si se cierra
+      document.body.style.overflow = '';
     }
   });
 }
 
 /*===== CART HIDDEN =====*/
-/* Validate if constant exists */
 if (cartClose) {
   cartClose.addEventListener("click", () => {
     cart.classList.remove('show-cart');
-
-    // Restaura el scroll de la página principal al cerrar el carrito
     document.body.style.overflow = '';
   });
 }
+
+/*===== OPEN CART VIA EVENT (AUTOMÁTICO) =====*/
+document.addEventListener("cart:open", () => {
+  if (!cart) return;
+
+  cart.classList.add("show-cart");
+  document.body.style.overflow = "hidden";
+});
 // 
 const inputSearch = document.getElementById('searchProduct');
 const contentCart = document.querySelector('.contentCart-search');
@@ -203,6 +206,20 @@ if (loginCheckout) {
   loginCheckout.addEventListener("click", () => {
     login.classList.add('show-login');
   });
+}
+
+const params = new URLSearchParams(window.location.search);
+if (params.get("activated") === "1") {
+  // abre modal login
+  const login = document.getElementById('login');
+  if (login) login.classList.add('show-login');
+
+  // (opcional) mensaje de éxito dentro del modal
+  const successBox = document.getElementById("success-message");
+  if (successBox) {
+    successBox.innerText = "Cuenta activada ✅ Ahora inicia sesión.";
+    successBox.style.display = "block";
+  }
 }
 
 
@@ -1076,20 +1093,28 @@ function createAllProductElement(product) {
         const data = { sizes: tallas, colors: colores };
 
         console.log("🔍 DATA COMPLETA: ", data);
-
-        renderSizeAndColors(data, sizeContainer, product.id);
+        closeButton.addEventListener("click", closeSelect);
+        renderSizeAndColors(data, sizeContainer, product.id,closeSelect);
       }
     }
   });
 
-  closeButton.addEventListener("click", () => {
-    selectSizeDiv.classList.add("hide");
-    selectSizeDiv.classList.remove("show");
-    toggleButton.setAttribute("aria-expanded", "false");
-    setTimeout(() => {
+  const closeSelect = () => {
+  selectSizeDiv.classList.add("hide");
+  selectSizeDiv.classList.remove("show");
+  toggleButton.setAttribute("aria-expanded", "false");
+  setTimeout(() => {
       selectSizeDiv.hidden = true;
     }, 300);
-  });
+  };
+  // closeButton.addEventListener("click", () => {
+  //   selectSizeDiv.classList.add("hide");
+  //   selectSizeDiv.classList.remove("show");
+  //   toggleButton.setAttribute("aria-expanded", "false");
+  //   setTimeout(() => {
+  //     selectSizeDiv.hidden = true;
+  //   }, 300);
+  // });
 
   return productElement;
 }
@@ -1142,7 +1167,7 @@ async function fetchColors(productId) {
 }
 
 
-function renderSizeAndColors({ sizes, colors }, container, productId) {
+function renderSizeAndColors({ sizes, colors }, container, productId,onClose) {
   if (!container) {
     console.error("⚠ Error: El contenedor no existe.");
     return;
@@ -1156,9 +1181,9 @@ function renderSizeAndColors({ sizes, colors }, container, productId) {
     return;
   }
 
-  console.log("📌 Tallas procesadas:", sizes);
-  console.log("📌 Colores procesados:", colors);
-  console.log("🔍 Renderizando ID...", productId);
+  // console.log("📌 Tallas procesadas:", sizes);
+  // console.log("📌 Colores procesados:", colors);
+  // console.log("🔍 Renderizando ID...", productId);
 
   let hasSizes = sizes.length > 0;
   let hasColors = colors.length > 0;
@@ -1182,7 +1207,11 @@ function renderSizeAndColors({ sizes, colors }, container, productId) {
 
           getSizeId(productId, sizeId).then(sizeIds => {
             if (sizeIds) {
+              // ✅ agrega al carrito
               addToCart(productId, sizeIds, null);
+
+              // ✅ cierra automáticamente el selector
+              if (typeof onClose === "function") onClose();
             } else {
               console.warn("No se pudo obtener el `sizeIds`.");
             }
@@ -1194,6 +1223,7 @@ function renderSizeAndColors({ sizes, colors }, container, productId) {
         sizeElement.style.pointerEvents = "none";
         sizeElement.style.opacity = "0.5";
       }
+      
 
       container.appendChild(sizeElement);
     });
@@ -1211,8 +1241,11 @@ function renderSizeAndColors({ sizes, colors }, container, productId) {
       colorElement.style.backgroundColor = color;
 
       if (hasStock) {
-        colorElement.addEventListener("click", () => {
-          addToCart(productId, null, color);
+        colorElement.addEventListener("click", async () => {
+          await addToCart(productId, null, color);
+
+          // ✅ cierra el selector automáticamente
+          if (typeof onClose === "function") onClose();
         });
       } else {
         colorElement.classList.add("disabled");
@@ -1230,6 +1263,7 @@ function renderSizeAndColors({ sizes, colors }, container, productId) {
     container.innerHTML = "<p>Sin tallas ni colores disponibles</p>";
     console.warn("🚨 No se encontraron tallas ni colores.");
   }
+
 }
 
 
@@ -1330,7 +1364,7 @@ async function loadDiscountedProducts() {
     const response = await fetch(`${baseUrl}/get-products/?promotions=true`);
     const data = await response.json();
 
-    console.log(data); // Verifica la respuesta completa
+    //console.log(data); // Verifica la respuesta completa
 
     const swiperWrapper = document.querySelector('#discounted-products .new-wrapper');
     const products = data.products.slice(0, 8); // Limitar a 4 productos
@@ -1411,7 +1445,7 @@ async function loadCateoryProducts() {
     const response = await fetch(`${baseUrl}/get-products/?with_colors=true`);
     const data = await response.json();
 
-    console.log(data); // Verifica la respuesta completa
+    //console.log(data); // Verifica la respuesta completa
 
     const swiperWrapper = document.querySelector('#accesories .new-wrapper');
     const products = data.products.slice(0, 8); // Limitar a 4 productos
@@ -1487,96 +1521,6 @@ function createCategoryProductElement(product) {
   return productElement;
 }
 
-// Agregar eventos de clic al producto y al carrito
-//MUESTRA EL STOCK
-// async function addEventListeners(product, productElement) {
-//   const toggleButton = productElement.querySelector(`#toggleSize-${product.id}`);
-//   const selectSizeDiv = productElement.querySelector(`#selectSize-${product.id}`);
-//   const closeButton = productElement.querySelector(`#closeSize-${product.id}`);
-//   const sizeContainer = productElement.querySelector(`#sizeContainer-${product.id}`);
-
-//   if (toggleButton) {
-//     toggleButton.addEventListener("click", async function (event) {
-//       event.preventDefault();
-
-//       // Alternar visibilidad del menú de selección
-//       const isHidden = selectSizeDiv.hidden;
-//       if (isHidden) {
-//         sizeContainer.innerHTML = ""; // Limpiar contenido previo
-
-//         try {
-//           // Obtener tallas y colores de forma asíncrona
-//           const [sizes, colors] = await Promise.all([
-//             fetchSizes(product.id),
-//             fetchColors(product.id)
-//           ]);
-
-//           if (sizes.length > 0) {
-//             // Mostrar tallas si existen
-//             sizes.forEach(size => {
-//               const sizeElement = document.createElement("div");
-//               sizeElement.classList.add("selectSize-size");
-//               sizeElement.setAttribute("data-size-id", size.id);
-//               sizeElement.setAttribute("data-product-id", product.id);
-//               sizeElement.innerHTML = `<a class="typeSize" href="javascript:void(0);">${size.cNombreTalla} (${size.stock} disponibles)</a>`;
-
-//               // Agregar evento de clic para cada talla
-//               sizeElement.addEventListener("click", (event) => {
-//                 event.preventDefault();
-
-//                 // Obtener IDs desde el contenedor
-//                 const sizeId = sizeElement.getAttribute("data-size-id");
-//                 const productId = sizeElement.getAttribute("data-product-id");
-
-//                 // Mostrar en consola
-//                 console.log("✅ ID Producto:", productId);
-//                 console.log("✅ ID Talla:", sizeId);
-//               });
-
-//               sizeContainer.appendChild(sizeElement);
-//             });
-//           } else if (colors.length > 0) {
-//             // Mostrar colores si no hay tallas
-//             colors.forEach(color => {
-//               const colorElement = document.createElement("div");
-//               colorElement.classList.add("color-circle");
-//               colorElement.style.backgroundColor = color.color;
-//               colorElement.innerHTML = `<span>${color.stock} disponibles</span>`;
-//               sizeContainer.appendChild(colorElement);
-//             });
-//           } else {
-//             // Si no hay ni tallas ni colores, mostrar mensaje
-//             sizeContainer.innerHTML = `<span class="no-options">No sizes or colors available</span>`;
-//           }
-
-//           // Mostrar el menú con animación
-//           selectSizeDiv.hidden = false;
-//           selectSizeDiv.classList.add("show");
-//           selectSizeDiv.classList.remove("hide");
-//           toggleButton.setAttribute("aria-expanded", "true");
-
-//         } catch (error) {
-//           console.error("❌ Error al obtener tallas o colores:", error);
-//         }
-//       }
-//     });
-//   } else {
-//     console.warn('No se encontró el botón de añadir al carrito.');
-//   }
-
-//   if (closeButton) {
-//     closeButton.addEventListener("click", function () {
-//       selectSizeDiv.classList.add("hide");
-//       selectSizeDiv.classList.remove("show");
-//       toggleButton.setAttribute("aria-expanded", "false");
-
-//       setTimeout(() => {
-//         selectSizeDiv.hidden = true;
-//       }, 300);
-//     });
-//   }
-// }
-
 
 //MUESTRA SOLO TALLA Y COLOR
 async function addEventListeners(product, productElement) {
@@ -1585,12 +1529,24 @@ async function addEventListeners(product, productElement) {
   const closeButton = productElement.querySelector(`#closeSize-${product.id}`);
   const sizeContainer = productElement.querySelector(`#sizeContainer-${product.id}`);
 
+  // ✅ función de cierre reutilizable
+  const closeSelect = () => {
+    if (!selectSizeDiv) return;
+    selectSizeDiv.classList.add("hide");
+    selectSizeDiv.classList.remove("show");
+    toggleButton?.setAttribute("aria-expanded", "false");
+
+    setTimeout(() => {
+      selectSizeDiv.hidden = true;
+    }, 300);
+  };
+
   if (toggleButton) {
     toggleButton.addEventListener("click", async function (event) {
       event.preventDefault();
 
       if (selectSizeDiv.hidden) {
-        sizeContainer.innerHTML = ""; // Limpiar contenido previo
+        sizeContainer.innerHTML = "";
 
         try {
           const [sizes, colors] = await Promise.all([
@@ -1599,7 +1555,6 @@ async function addEventListeners(product, productElement) {
           ]);
 
           if (sizes.length > 0) {
-            // Mostrar tallas
             sizes.forEach(size => {
               const sizeElement = document.createElement("div");
               sizeElement.classList.add("selectSize-size");
@@ -1616,9 +1571,11 @@ async function addEventListeners(product, productElement) {
                   const sizeId = sizeElement.getAttribute("data-size-id");
                   const productId = sizeElement.getAttribute("data-product-id");
 
-                  getSizeId(productId, sizeId).then(sizeIds => {
+                  getSizeId(productId, sizeId).then(async (sizeIds) => {
                     if (sizeIds) {
-                      addToCart(productId, sizeIds, null);
+                      await addToCart(productId, sizeIds, null);
+                      // ✅ cerrar automático al agregar
+                      closeSelect();
                     } else {
                       console.warn("No se pudo obtener el `sizeIds`.");
                     }
@@ -1633,8 +1590,8 @@ async function addEventListeners(product, productElement) {
 
               sizeContainer.appendChild(sizeElement);
             });
+
           } else if (colors.length > 0) {
-            // Mostrar colores
             colors.forEach((colorObj) => {
               const hasStock = colorObj.stock > 0;
               const rgbColor = hexToRgb(colorObj.color);
@@ -1644,8 +1601,10 @@ async function addEventListeners(product, productElement) {
               colorElement.style.backgroundColor = `rgb(${rgbColor.r}, ${rgbColor.g}, ${rgbColor.b})`;
 
               if (hasStock) {
-                colorElement.addEventListener("click", () => {
-                  addToCart(product.id, null, colorObj.color);
+                colorElement.addEventListener("click", async () => {
+                  await addToCart(product.id, null, colorObj.color);
+                  // ✅ cerrar automático al agregar
+                  closeSelect();
                 });
               } else {
                 colorElement.classList.add("disabled");
@@ -1668,20 +1627,24 @@ async function addEventListeners(product, productElement) {
       }
     });
   }
+  
+  function hexToRgb(hex) {
+    // Eliminar el signo '#' del comienzo si está presente
+    hex = hex.replace(/^#/, '');
+
+    // Convertir el valor hexadecimal a RGB
+    const bigint = parseInt(hex, 16);
+    const r = (bigint >> 16) & 255;
+    const g = (bigint >> 8) & 255;
+    const b = bigint & 255;
+
+    return { r, g, b };
+  }
 
   if (closeButton) {
-    closeButton.addEventListener("click", function () {
-      selectSizeDiv.classList.add("hide");
-      selectSizeDiv.classList.remove("show");
-      toggleButton.setAttribute("aria-expanded", "false");
-
-      setTimeout(() => {
-        selectSizeDiv.hidden = true;
-      }, 300);
-    });
+    closeButton.addEventListener("click", closeSelect);
   }
 }
-
 
 // Función para inicializar el Swiper
 function initSwipers() {
@@ -1829,57 +1792,121 @@ document.querySelectorAll(".checkout__envio-contenido").forEach(item => {
   });
 });
 
-document.getElementById("loginForm").addEventListener("submit", async function (event) {
+// document.getElementById("loginForm").addEventListener("submit", async function (event) {
+//   event.preventDefault();
+
+//   const email = document.getElementById("email").value;
+//   const password = document.getElementById("password").value;
+//   const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+//   try {
+//     const response = await fetch("/login/", {
+//       method: "POST",
+//       headers: {
+//         "Content-Type": "application/x-www-form-urlencoded",
+//         "X-CSRFToken": csrfToken,
+//       },
+//       body: new URLSearchParams({
+//         username: email,
+//         password: password
+//       })
+//     });
+
+//     const data = await response.json();
+//     console.log("Data response:", data);  // Verifica el contenido de la respuesta
+
+//     if (response.ok) {
+//       // Guardar en localStorage
+
+//       localStorage.setItem("access_token", data.access_token);
+//       localStorage.setItem("refresh_token", data.refresh_token);
+//       localStorage.setItem("email", data.email);
+//       localStorage.setItem("first_name", data.first_name);
+//       localStorage.setItem("last_name", data.last_name);
+//       localStorage.setItem("cod_postal", data.codPostal);
+//       localStorage.setItem("ciudad", data.ciudad);
+//       localStorage.setItem("direccion", data.direccion);
+//       localStorage.setItem("region", data.region);
+//       localStorage.setItem("ruc", data.ruc);
+//       localStorage.setItem("telefono", data.telefono);
+
+//       // Redirigir al perfil
+//       window.location.href = "/perfil";
+//     } else {
+//       document.getElementById("error-message").innerText = data.error;
+//       document.getElementById("error-message").style.display = "block";
+//     }
+//   } catch (error) {
+//     document.getElementById("error-message").innerText = "Error de conexión";
+//     document.getElementById("error-message").style.display = "block";
+//   }
+// });
+
+document.getElementById("loginForm").addEventListener("submit", async (event) => {
   event.preventDefault();
 
-  const email = document.getElementById("email").value;
+  const email = document.getElementById("email").value.trim();
   const password = document.getElementById("password").value;
-  const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+  const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+
+  const errorBox = document.getElementById("error-message");
+  const showError = (msg) => {
+    errorBox.innerText = msg;
+    errorBox.style.display = "block";
+  };
+  const hideError = () => {
+    errorBox.innerText = "";
+    errorBox.style.display = "none";
+  };
+
+  hideError();
+
+  if (!email || !password) {
+    showError("Completa correo y contraseña.");
+    return;
+  }
 
   try {
     const response = await fetch("/login/", {
       method: "POST",
       headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
+        "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
         "X-CSRFToken": csrfToken,
       },
-      body: new URLSearchParams({
-        username: email,
-        password: password
-      })
+      body: new URLSearchParams({ username: email, password }),
+      credentials: "same-origin", // importante si usas sesión Django
     });
 
-    const data = await response.json();
-    console.log("Data response:", data);  // Verifica el contenido de la respuesta
+    // Intentar leer JSON, pero sin romper si llega HTML/texto
+    const contentType = response.headers.get("content-type") || "";
+    const data = contentType.includes("application/json")
+      ? await response.json()
+      : { error: await response.text() };
 
     if (response.ok) {
-      // Guardar en localStorage
-
+      // OJO: guardar JWT en localStorage tiene riesgos (XSS). Si lo mantienes, ok por ahora.
       localStorage.setItem("access_token", data.access_token);
       localStorage.setItem("refresh_token", data.refresh_token);
-      localStorage.setItem("email", data.email);
-      localStorage.setItem("first_name", data.first_name);
-      localStorage.setItem("last_name", data.last_name);
-      localStorage.setItem("cod_postal", data.codPostal);
-      localStorage.setItem("ciudad", data.ciudad);
-      localStorage.setItem("direccion", data.direccion);
-      localStorage.setItem("region", data.region);
-      localStorage.setItem("ruc", data.ruc);
-      localStorage.setItem("telefono", data.telefono);
 
-      // Redirigir al perfil
-      window.location.href = "/perfil";
-    } else {
-      document.getElementById("error-message").innerText = data.error;
-      document.getElementById("error-message").style.display = "block";
+      localStorage.setItem("email", data.email ?? "");
+      localStorage.setItem("first_name", data.first_name ?? "");
+      localStorage.setItem("last_name", data.last_name ?? "");
+      localStorage.setItem("cod_postal", data.codPostal ?? "");
+      localStorage.setItem("ciudad", data.ciudad ?? "");
+      localStorage.setItem("direccion", data.direccion ?? "");
+      localStorage.setItem("region", data.region ?? "");
+      localStorage.setItem("ruc", data.ruc ?? "");
+      localStorage.setItem("telefono", data.telefono ?? "");
+
+      window.location.href = "/user-logated/";
+      return;
     }
-  } catch (error) {
-    document.getElementById("error-message").innerText = "Error de conexión";
-    document.getElementById("error-message").style.display = "block";
+
+    showError(data.error || "No se pudo iniciar sesión.");
+  } catch (err) {
+    showError("Error de conexión. Intenta nuevamente.");
   }
 });
-
-
 
 const contenedorBotones = document.getElementById('contenedor-botones');
 const contenedorToast = document.getElementById('contenedor-toast');
@@ -1891,74 +1918,202 @@ document.getElementById("crearCuenta").addEventListener("click", async function 
   const last_name = document.getElementById("apellidos").value.trim();
   const email = document.getElementById("emailCreate").value.trim();
   const password = document.getElementById("passwordCreate").value.trim();
-  const phone = document.getElementById("phone").value.trim();
-  const errorMsg = document.getElementById("errorMensaje");
+  const re_password = document.getElementById("passwordRepet").value.trim();
+  const telefono = document.getElementById("phone").value.trim();
 
-  if (!first_name || !last_name || !email || !password || !phone) {
-    errorMsg.innerText = "Todos los campos obligatorios deben completarse.";
+  const errorMsg = document.getElementById("errorMensaje");
+  const errorBox = document.getElementById("error-message") || errorMsg;
+
+  if (!first_name || !last_name || !email || !password || !re_password || !telefono) {
+    Swal.fire("Campos incompletos", "Todos los campos obligatorios deben completarse.", "warning");
     return;
   }
 
-  // Crear el objeto con los datos obligatorios
-  const userData = {
-    first_name,
-    last_name,
-    email,
-    password,
-    phone
-  };
+  const userData = { first_name, last_name, email, password, re_password, telefono };
 
-  // Agregar datos opcionales si los elementos existen en el DOM
-  const optionalFields = ["direccion", "ruc", "ciudad", "region", "codPostal"];
-  optionalFields.forEach(field => {
-    const element = document.getElementById(field);
-    userData[field] = element ? element.value.trim() : "";
+  ["direccion", "ruc", "ciudad", "region", "codPostal"].forEach(field => {
+    const el = document.getElementById(field);
+    userData[field] = el ? el.value.trim() : "";
   });
 
   const btn = document.getElementById("crearCuenta");
   btn.disabled = true;
 
-  try {
-    console.log("Enviando datos:", userData);
-    const baseUrl = document.body.dataset.apiUrl;
-    const response = await fetch(`${baseUrl}/api/registro/`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
+  const hasSwal = typeof Swal !== "undefined" && Swal.fire;
+
+  if (hasSwal) {
+    Swal.fire({
+      title: "Creando cuenta...",
+      text: "Por favor espera un momento.",
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      didOpen: () => {
+        Swal.showLoading();
       },
-      body: JSON.stringify(userData)
     });
-    
-    let data = null;
+  }
+
+  try {
+    const baseUrl = document.body.dataset.apiUrl;
+    const response = await fetch(`${baseUrl}/auth/users/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(userData),
+    });
+
     const contentType = response.headers.get("content-type") || "";
+    let data;
 
     if (contentType.includes("application/json")) {
       data = await response.json();
     } else {
       const text = await response.text();
-      data = { error: text }; // para ver qué llegó realmente
+      data = { detail: text };
     }
 
-    //const data = await response.json();
+    if (hasSwal) Swal.close();
 
     if (response.ok) {
-      swal(
+      await Swal.fire(
         "¡Éxito!",
-        `Bienvenido ${userData.first_name}. Ahora puedes Iniciar Sesión, tu cuenta fue creada con éxito.`,
+        `Bienvenido ${userData.first_name}. REVISE SU CORREO y ACTIVE SU CUENTA.`,
         "success"
       );
+      window.location.href = "/";
     } else {
-      document.getElementById("error-message").innerText = data.error;
-      document.getElementById("error-message").style.display = "block";
+
+      // 🔴 Construir mensaje de error claro
+      let msg = "";
+      let title = "Error en el registro";
+
+      if (data?.detail) {
+        msg = data.detail;
+      } else if (data && typeof data === "object") {
+        msg = Object.entries(data)
+          .map(([campo, errores]) => {
+            const textoError = Array.isArray(errores) ? errores.join(", ") : errores;
+
+            // Personalizar nombres visibles
+            const nombresCampos = {
+              email: "Correo electrónico",
+              password: "Contraseña",
+              re_password: "Confirmación de contraseña",
+              telefono: "Teléfono",
+              first_name: "Nombre",
+              last_name: "Apellidos"
+            };
+
+            const nombreVisible = nombresCampos[campo] || campo;
+            return `${nombreVisible}: ${textoError}`;
+          })
+          .join("<br>");
+      } else {
+        msg = "Ocurrió un error inesperado.";
+        
+      }
+
+      // Mostrar en SweetAlert
+      Swal.fire({
+        icon: "error",
+        title: title,
+        html: msg
+      });
+
+      // También en el DOM si quieres
+      errorBox.innerHTML = msg;
+      errorBox.style.display = "block";
     }
+
   } catch (error) {
+
+    if (hasSwal) Swal.close();
+
+    Swal.fire(
+      "Error de conexión",
+      "No se pudo conectar con el servidor. Inténtalo nuevamente.",
+      "error"
+    );
+
     console.error("Error en la solicitud:", error);
-    errorMsg.innerText = "Hubo un problema con el registro. Inténtalo nuevamente.";
   } finally {
     btn.disabled = false;
   }
-
 });
+// document.getElementById("crearCuenta").addEventListener("click", async function (event) {
+//   event.preventDefault();
+
+//   const first_name = document.getElementById("nombre").value.trim();
+//   const last_name = document.getElementById("apellidos").value.trim();
+//   const email = document.getElementById("emailCreate").value.trim();
+//   const password = document.getElementById("passwordCreate").value.trim();
+//   const phone = document.getElementById("phone").value.trim();
+//   const errorMsg = document.getElementById("errorMensaje");
+
+//   if (!first_name || !last_name || !email || !password || !phone) {
+//     errorMsg.innerText = "Todos los campos obligatorios deben completarse.";
+//     return;
+//   }
+
+//   // Crear el objeto con los datos obligatorios
+//   const userData = {
+//     first_name,
+//     last_name,
+//     email,
+//     password,
+//     phone
+//   };
+
+//   // Agregar datos opcionales si los elementos existen en el DOM
+//   const optionalFields = ["direccion", "ruc", "ciudad", "region", "codPostal"];
+//   optionalFields.forEach(field => {
+//     const element = document.getElementById(field);
+//     userData[field] = element ? element.value.trim() : "";
+//   });
+
+//   const btn = document.getElementById("crearCuenta");
+//   btn.disabled = true;
+
+//   try {
+//     console.log("Enviando datos:", userData);
+//     const baseUrl = document.body.dataset.apiUrl;
+//     const response = await fetch(`${baseUrl}/api/registro/`, {
+//       method: "POST",
+//       headers: {
+//         "Content-Type": "application/json"
+//       },
+//       body: JSON.stringify(userData)
+//     });
+    
+//     let data = null;
+//     const contentType = response.headers.get("content-type") || "";
+
+//     if (contentType.includes("application/json")) {
+//       data = await response.json();
+//     } else {
+//       const text = await response.text();
+//       data = { error: text }; // para ver qué llegó realmente
+//     }
+
+//     //const data = await response.json();
+
+//     if (response.ok) {
+//       Swal(
+//         "¡Éxito!",
+//         `Bienvenido ${userData.first_name}. Ahora puedes Iniciar Sesión, tu cuenta fue creada con éxito.`,
+//         "success"
+//       );
+//     } else {
+//       document.getElementById("error-message").innerText = data.error;
+//       document.getElementById("error-message").style.display = "block";
+//     }
+//   } catch (error) {
+//     console.error("Error en la solicitud:", error);
+//     errorMsg.innerText = "Hubo un problema con el registro. Inténtalo nuevamente.";
+//   } finally {
+//     btn.disabled = false;
+//   }
+
+// });
 
 
 // Función para cerrar el toast

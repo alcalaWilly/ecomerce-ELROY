@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from django.shortcuts import render
 from django.conf import settings
-from .utils import calculate_payment_total
+from .utils import calculate_payment_total, calculate_payment_total_guest
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -15,6 +15,7 @@ import braintree
 from rest_framework.permissions import IsAuthenticated
 from decimal import Decimal
 from apps.product.models import PromotionUsage
+from rest_framework.permissions import AllowAny
 # Create your views here.
 gateway = braintree.BraintreeGateway(
     braintree.Configuration(
@@ -42,155 +43,49 @@ class GenerateTokenView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-class GetPaymentTotalView(APIView):
-    permission_classes = [IsAuthenticated]
+#solo para usuarios autentificados
+# class GetPaymentTotalView(APIView):
+#     #solo autentificados
+#     permission_classes = [IsAuthenticated]
+#     def get(self, request, format=None):
+#         user = request.user
+#         shipping_id = request.query_params.get('shipping_id')
+#         coupon_code = request.query_params.get('coupon_code')
 
-    def get(self, request, format=None):
-        user = request.user
-        shipping_id = request.query_params.get('shipping_id')
-        coupon_code = request.query_params.get('coupon_code')
-
-        try:
-            cart = Cart.objects.get(user=user)
-        except Cart.DoesNotExist:
-            return Response({'error': 'Cart not found'}, status=status.HTTP_404_NOT_FOUND)
-
-        result, status_code = calculate_payment_total(cart, shipping_id, coupon_code)
-        print("Resultado de calculate_payment_total:")
-        print(result)
-
-        return Response(result, status=status_code)
-    
-
-# class ProcessPaymentView(APIView):
-#     def post(self, request, format=None):
-#         user = self.request.user
-#         data = self.request.data
-
+        
+#         #para solo autentificados
 #         try:
-#             nonce = data.get('nonce')
-#             shipping_id = str(data.get('shipping_id'))
-#             coupon_code = str(data.get('coupon_name'))
+#             cart = Cart.objects.get(user=user)
+#         except Cart.DoesNotExist:
+#             return Response({'error': 'Cart not found'}, status=status.HTTP_404_NOT_FOUND)
 
-#             full_name = data.get('full_name')
-#             address_line_1 = data.get('address_line_1')
-#             address_line_2 = data.get('address_line_2')
-#             city = data.get('city')
-#             state_province_region = data.get('state_province_region')
-#             postal_zip_code = data.get('postal_zip_code')
-#             country_region = data.get('country_region')
-#             telephone_number = data.get('telephone_number')
+#         result, status_code = calculate_payment_total(cart, shipping_id, coupon_code)
+#         print("Resultado de calculate_payment_total:")
+#         print(result)
 
-#             if not nonce:
-#                 return Response({'error': 'Missing payment nonce'}, status=status.HTTP_400_BAD_REQUEST)
+#         return Response(result, status=status_code)
+    
+class GetPaymentTotalView(APIView):
+    permission_classes = [AllowAny]
 
-#             if not Shipping.objects.filter(id__iexact=shipping_id).exists():
-#                 return Response({'error': 'Invalid shipping option'}, status=status.HTTP_404_NOT_FOUND)
+    def post(self, request, format=None):
+        user = request.user
+        shipping_id = request.data.get('shipping_id')
+        coupon_code = request.data.get('coupon_code')
+        checkout_data = request.data.get('checkout_data', [])
 
-#             try:
-#                 cart = Cart.objects.get(user=user)
-#             except Cart.DoesNotExist:
-#                 return Response({'error': 'Cart not found'}, status=status.HTTP_404_NOT_FOUND)
+        if user and user.is_authenticated:
+            try:
+                cart = Cart.objects.get(user=user)
+            except Cart.DoesNotExist:
+                return Response({'error': 'Cart not found'}, status=status.HTTP_404_NOT_FOUND)
 
-#             result, status_code = calculate_payment_total(cart, shipping_id, coupon_code)
-#             if 'error' in result:
-#                 return Response(result, status=status_code)
+            result, status_code = calculate_payment_total(cart, shipping_id, coupon_code)
+            return Response(result, status=status_code)
 
-#             total_amount = float(result['total_price'])
-#             shipping = Shipping.objects.get(id=int(shipping_id))
-#             shipping_name = shipping.name
-#             shipping_time = shipping.time_to_delivery
-#             shipping_price = float(shipping.price)
+        result, status_code = calculate_payment_total_guest(checkout_data, shipping_id, coupon_code)
+        return Response(result, status=status_code)
 
-#             newTransaction = gateway.transaction.sale({
-#                 'amount': str(total_amount),
-#                 'payment_method_nonce': str(nonce),
-#                 'options': {'submit_for_settlement': True}
-#             })
-
-#             if newTransaction.is_success or newTransaction.transaction:
-#                 cart_items = CartItem.objects.filter(cart=cart)
-
-#                 # Registrar uso del cupón si fue aplicado
-#                 if coupon_code and result.get('coupon_applied', False):
-#                     for cart_item in cart_items:
-#                         product = cart_item.product
-#                         promo = product.promotions.filter(code=coupon_code).first()
-#                         if promo:
-#                             PromotionUsage.objects.get_or_create(user=user, promotion=promo)
-#                             promo.usage_count += 1
-#                             promo.save()
-#                             break
-
-
-#                 for cart_item in cart_items:
-#                     product = ProductUnidad.objects.get(id=cart_item.product.id)
-
-#                     if cart_item.talla:
-#                         talla_stock = ProductTallaStock.objects.filter(product=product, talla_id=cart_item.talla).first()
-#                         if talla_stock:
-#                             talla_stock.stock -= cart_item.count
-#                             talla_stock.save()
-#                             product.stock -= cart_item.count
-#                             product.save()
-#                     elif cart_item.color:
-#                         color_stock = ProductColorStock.objects.filter(product=product, color=cart_item.color).first()
-#                         if color_stock:
-#                             color_stock.stock -= cart_item.count
-#                             color_stock.save()
-#                             product.stock -= cart_item.count
-#                             product.save()
-#                     else:
-#                         product.stock -= cart_item.count
-#                         product.save()
-
-#                 order = Order.objects.create(
-#                     user=user,
-#                     transaction_id=newTransaction.transaction.id,
-#                     amount=total_amount,
-#                     full_name=full_name,
-#                     address_line_1=address_line_1,
-#                     address_line_2=address_line_2,
-#                     city=city,
-#                     state_province_region=state_province_region,
-#                     postal_zip_code=postal_zip_code,
-#                     country_region=country_region,
-#                     telephone_number=telephone_number,
-#                     shipping_name=shipping_name,
-#                     shipping_time=shipping_time,
-#                     shipping_price=shipping_price
-#                 )
-
-#                 for cart_item in cart_items:
-#                     product = ProductUnidad.objects.get(id=cart_item.product.id)
-#                     OrderItem.objects.create(
-#                         product=product,
-#                         order=order,
-#                         name=product.name,
-#                         price=cart_item.product.price,
-#                         count=cart_item.count,
-#                         talla=cart_item.talla,
-#                         color=cart_item.color
-#                     )
-
-#                 send_mail(
-#                     'Your Order Details',
-#                     f'Hey {full_name},\n\nWe received your order!\n\nGive us some time to process your order and ship it out to you.\n\nYou can go on your user dashboard to check the status of your order.\n\nSincerely,\nShop Time',
-#                     'mail@ninerogues.com',
-#                     [user.email],
-#                     fail_silently=False
-#                 )
-
-#                 CartItem.objects.filter(cart=cart).delete()
-#                 Cart.objects.filter(user=user).update(total_items=0)
-
-#                 return Response({'success': 'Transaction successful and order was created'}, status=status.HTTP_200_OK)
-
-#             else:
-#                 return Response({'error': 'Transaction failed'}, status=status.HTTP_400_BAD_REQUEST)
-
-#         except Exception as e:
-#             return Response({'error': f'Unexpected error: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class ProcessPaymentView(APIView):
     def post(self, request, format=None):

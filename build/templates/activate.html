@@ -1,0 +1,57 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Activar cuenta</title>
+</head>
+<body data-api-url="">
+  <h2 id="msg">Activando tu cuenta...</h2>
+  <pre id="err" style="display:none; white-space:pre-line;"></pre>
+
+  <script>
+    // uid/token vienen del servidor (render)
+    const uid = "{{ uid }}";
+    const token = "{{ token }}";
+
+    // Si tu baseUrl lo guardas en data-api-url del body, ponlo aquí:
+    // const baseUrl = document.body.dataset.apiUrl || "";
+    const baseUrl = window.location.origin;
+  </script>
+
+  <script>
+    (async function () {
+      const msg = document.getElementById("msg");
+      const err = document.getElementById("err");
+
+      try {
+        const res = await fetch(`${baseUrl}/auth/users/activation/`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ uid, token })
+        });
+
+        if (res.ok) {
+          msg.innerText = "✅ Cuenta activada. Redirigiendo al login...";
+          setTimeout(() => window.location.href = "/?activated=1", 1200);
+          return;
+        }
+
+        const contentType = res.headers.get("content-type") || "";
+        const data = contentType.includes("application/json") ? await res.json() : { detail: await res.text() };
+
+        msg.innerText = "";
+        err.style.display = "block";
+        err.innerText =
+          data?.detail ||
+          Object.entries(data).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`).join("\n") ||
+          "No se pudo activar la cuenta.";
+
+      } catch (e) {
+        msg.innerText = "";
+        err.style.display = "block";
+        err.innerText = "Error de conexión al activar la cuenta.";
+      }
+    })();
+  </script>
+</body>
+</html>

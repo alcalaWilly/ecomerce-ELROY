@@ -1,161 +1,336 @@
-
-
-async function addToCart(productId, sizeId = null, colorRGB = null) {
-    console.log("Producto agregadooooooo:", productId, "Talla:", sizeId, "Color:", colorRGB);
-
-    const accessToken = localStorage.getItem("access_token");
-
-    if (accessToken) {
-
-        // 🔄 Si hay sizeId, reemplazarlo por talla.id real usando la API
-        // if (sizeId !== null) {
-        //     try {
-        //         const response = await fetch(`http://127.0.0.1:8000/product/${productId}`);
-        //         const productData = await response.json();
-        
-        //         // Buscar el objeto del array tallas con ID igual a sizeId
-        //         const selectedTallaStock = productData.tallas.find(t => t.id === Number(sizeId));
-        
-        //         if (selectedTallaStock?.talla?.id) {
-        //             console.log(`🔁 Reemplazando sizeId ${sizeId} ➡️ talla.id ${selectedTallaStock.talla.id}`);
-        //             sizeId = selectedTallaStock.talla.id;
-        //         } else {
-        //             console.warn("⚠️ No se pudo encontrar talla.id dentro del sizeId proporcionado.");
-        //         }
-        //     } catch (error) {
-        //         console.error("❌ Error al obtener talla interna:", error);
-        //     }
-        // }
-        
-
-        // 🟢 Usuario autenticado: Enviar solicitud al backend
-        const baseUrl = document.body.dataset.apiUrl;
-        const url = `${baseUrl}/api/cart/add-item`;
-
-        const data = {
-            product_id: productId,
-            ...(sizeId !== null && { talla_id: sizeId }),
-            ...(colorRGB && { color: colorRGB }) // Agregar color si es diferente
-        };
-
-        try {
-            const response = await fetch(url, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${accessToken}`,
-                },
-                body: JSON.stringify(data),
-            });
-
-            const result = await response.json();
-
-            if (response.ok) {
-
-                updateCartCount();
-                await loadCartItems();
-                showMessage("Producto agregado al carrito.", "success");
-                console.log("DATOS AGREGADOOOOOOS DESPUEEES", response);
-            } else {
-                console.error("❌ Error al agregar el producto:", result);
-                showMessage(result.detail || "No se pudo agregar el producto.", "error");
-            }
-        } catch (error) {
-            console.error("❌ Error en la solicitud:", error);
-            showMessage("Hubo un error en la solicitud. Intenta de nuevo.", "error");
-        }
-    } else {
-        // Recuperar el carrito desde LocalStorage
-        let cart = JSON.parse(localStorage.getItem("cart")) || [];
-
-        // Convertir valores a números para comparación segura
-        productId = Number(productId);
-        sizeId = sizeId !== null ? String(sizeId) : null;
-        colorRGB = colorRGB !== null ? String(colorRGB) : null;
-
-        // Buscar producto existente
-        const existingProduct = cart.find(item =>
-            Number(item.product_id) === productId &&
-            String(item.size_id) === sizeId &&
-            String(item.color) === colorRGB
-        );
-
-        if (existingProduct) {
-            // ✅ Incrementar cantidad si ya existe
-            existingProduct.quantity += 1;
-            console.log("Producto existente encontrado, cantidad aumentada:", existingProduct);
-        } else {
-            // 🆕 Agregar nuevo producto si no existe
-            cart.push({
-                product_id: productId,
-                quantity: 1,
-                ...(sizeId !== null && { size_id: sizeId }),
-                ...(colorRGB && { color: colorRGB })
-            });
-            console.log("Producto agregado al carrito:", cart);
-        }
-
-        // Guardar carrito actualizado
-        localStorage.setItem("cart", JSON.stringify(cart));
-        cartData = JSON.parse(localStorage.getItem("cart")) || [];
-        // console.log("DATOS AGREGADOOOOOOS ANTEEES", cartData);
-
-        cartData = consolidateLocalCart(cartData);
-        cartData = await consolidateCartData(cartData);
-        localStorage.setItem("cart", JSON.stringify(cartData));
-        console.log("DATOS AGREGADOOOOOOS DESPUEEES", cartData);
-        updateCartCount();
-        await loadCartItems();
-        showMessage("Producto agregado al carrito (sin iniciar sesión).", "success");
-
-    }
-
-    function consolidateLocalCart(cart) {
-        const cartMap = {};
-
-        cart.forEach(item => {
-            // Validar y normalizar `product_id`
-            const productId = item.product_id ? String(item.product_id) : "missing_id";
-
-            // Normalizar talla y color correctamente
-            const sizeKey = item.size_id !== null && item.size_id !== undefined ? String(item.size_id) : "no_size";
-            const colorKey = item.color ? item.color.toLowerCase().trim() : null;
-            const count = item.count ?? 1;
-
-            console.log("Después de normalizar:", {
-                productId,
-                type_product_id: typeof productId,
-                sizeKey,
-                type_size_id: typeof sizeKey,
-                colorKey,
-                type_color: typeof colorKey,
-                count,
-                type_count: typeof count
-            });
-
-            // Generar clave única asegurando consistencia
-            const key = `${productId}_${sizeKey}_${colorKey}`;
-            console.log(`Clave generada: ${key}`);
-
-            if (cartMap[key]) {
-                // ✅ Incrementar cantidad si ya existe la misma combinación
-                cartMap[key].count += count;
-            } else {
-                // 🆕 Agregar nuevo si no existe
-                cartMap[key] = { ...item, product_id: productId, size_id: sizeKey, color: colorKey, count };
-            }
-        });
-
-        // 🔄 Convertir `cartMap` a un array
-        return Object.values(cartMap);
-    }
-
-
-
-
-
+function getApiBaseUrl() {
+  return document.body.dataset.apiUrl || window.location.origin;
 }
 
+function getAccessToken() {
+  return localStorage.getItem("access_token");
+}
+
+function normaliseCartItem(item) {
+  return {
+    product_id: Number(item.product_id),
+    quantity: Number(item.quantity ?? 1),
+    size_id:
+      item.size_id !== undefined && item.size_id !== null && item.size_id !== ""
+        ? String(item.size_id)
+        : null,
+    color:
+      item.color !== undefined && item.color !== null && String(item.color).trim() !== ""
+        ? String(item.color).trim().toLowerCase()
+        : null,
+  };
+}
+
+function buildCartKey(item) {
+  const normalised = normaliseCartItem(item);
+  return `${normalised.product_id}__${normalised.size_id ?? "no_size"}__${normalised.color ?? "no_color"}`;
+}
+
+function getLocalCart() {
+  const raw = JSON.parse(localStorage.getItem("cart")) || [];
+  return raw.map(normaliseCartItem);
+}
+
+function saveLocalCart(cart) {
+  localStorage.setItem("cart", JSON.stringify(cart));
+}
+
+function consolidateLocalCart(cart) {
+  const map = new Map();
+
+  for (const rawItem of cart) {
+    const item = normaliseCartItem(rawItem);
+    const key = buildCartKey(item);
+
+    if (map.has(key)) {
+      map.get(key).quantity += item.quantity;
+    } else {
+      map.set(key, { ...item });
+    }
+  }
+
+  return Array.from(map.values());
+}
+
+// ==============================
+// OPTIONAL: ENRICH LOCAL CART FOR UI
+// ==============================
+let sizesCache = null;
+
+async function getAllSizes() {
+    if (sizesCache) return sizesCache;
+
+    const baseUrl = document.body.dataset.apiUrl;
+
+    try {
+        const response = await fetch(`${baseUrl}/get/sizes/`);
+        if (!response.ok) throw new Error("No se pudieron obtener las tallas.");
+
+        const data = await response.json();
+        sizesCache = data.results || [];
+        return sizesCache;
+    } catch (error) {
+        console.error("Error obteniendo tallas:", error);
+        return [];
+    }
+}
+
+async function enrichLocalCart(cart) {
+    const baseUrl = getApiBaseUrl();
+    const consolidated = consolidateLocalCart(cart);
+    const allSizes = await getAllSizes();
+
+    const uniqueProductIds = [...new Set(consolidated.map((item) => item.product_id))];
+
+    const productResponses = await Promise.all(
+        uniqueProductIds.map(async (id) => {
+            try {
+                const response = await fetch(`${baseUrl}/product/${id}`);
+                if (!response.ok) return null;
+                return await response.json();
+            } catch (error) {
+                console.error(`Error obteniendo producto ${id}:`, error);
+                return null;
+            }
+        })
+    );
+
+    const productMap = {};
+    for (const data of productResponses) {
+        if (data?.product?.id) {
+            productMap[Number(data.product.id)] = data;
+        }
+    }
+
+    return consolidated.map((item) => {
+        const details = productMap[item.product_id];
+        const product = details?.product || null;
+        const sizeInfo = resolveSizeInfoFromList(allSizes, item.size_id);
+
+        return {
+            product_id: item.product_id,
+            quantity: item.quantity,
+            size_id: sizeInfo.size_id,
+            talla: sizeInfo.talla,
+            color: item.color,
+            product: product
+        };
+    });
+}
+
+function resolveSizeInfoFromList(sizes, rawSizeId) {
+    if (rawSizeId === null || rawSizeId === undefined || rawSizeId === "") {
+        return {
+            talla: null,
+            size_id: null
+        };
+    }
+
+    const sizeId = String(rawSizeId);
+
+    const tallaEncontrada = sizes.find(
+        (size) => Number(size.id) === Number(rawSizeId)
+    );
+
+    return {
+        talla: tallaEncontrada?.cNombreTalla ?? null,
+        size_id: sizeId
+    };
+}
+
+async function consolidateCartData(cartData) {
+    const allSizes = await getAllSizes();
+
+    const consolidatedCart = cartData.reduce((acc, item) => {
+        const productId = item.product?.id;
+        const sizeId = item.talla ?? null;
+        const color = item.color ?? null;
+
+        const key = `${productId}_${sizeId ?? "no_size"}_${color ?? "no_color"}`;
+
+        if (acc[key]) {
+            acc[key].quantity += Number(item.count || 1);
+        } else {
+            acc[key] = {
+                ...item,
+                quantity: Number(item.count || 1)
+            };
+        }
+
+        return acc;
+    }, {});
+
+    const consolidatedArray = Object.values(consolidatedCart);
+
+    return consolidatedArray.map(item => {
+        const sizeInfo = resolveSizeInfoFromList(allSizes, item.talla);
+
+        return {
+            product_id: item.product?.id ?? null,
+            product: item.product,
+            quantity: Number(item.quantity || item.count || 1),
+            talla: sizeInfo.talla,
+            size_id: sizeInfo.size_id,
+            color: item.color ?? null
+        };
+    });
+}
+// ==============================
+// BACKEND
+// ==============================
+
+// async function addToServerCart(productId, sizeId = null, color = null) {
+//   const accessToken = getAccessToken();
+//   const baseUrl = getApiBaseUrl();
+
+//   const payload = {
+//     product_id: Number(productId),
+//     ...(sizeId !== null && sizeId !== undefined && sizeId !== "" && {
+//       talla_id: Number(sizeId),
+//     }),
+//     ...(color && { color: String(color).trim().toLowerCase() }),
+//   };
+
+//   const response = await fetch(`${baseUrl}/api/cart/add-item`, {
+//     method: "POST",
+//     headers: {
+//       "Content-Type": "application/json",
+//       Authorization: `Bearer ${accessToken}`,
+//     },
+//     body: JSON.stringify(payload),
+//   });
+
+//   const result = await response.json().catch(() => ({}));
+
+//   if (!response.ok) {
+//     throw new Error(result.detail || "No se pudo agregar el producto.");
+//   }
+
+//   return result;
+// }
+
+async function addToServerCart(productId, sizeId = null, color = null) {
+  const accessToken = getAccessToken();
+  const baseUrl = getApiBaseUrl();
+
+  const payload = {
+    product_id: Number(productId),
+    ...(sizeId !== null && sizeId !== undefined && sizeId !== "" && {
+      talla_id: Number(sizeId),
+    }),
+    ...(color && { color: String(color).trim().toLowerCase() }),
+  };
+
+  const response = await fetch(`${baseUrl}/api/cart/add-item`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const result = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(result.detail || "No se pudo agregar el producto.");
+  }
+
+  return result;
+}
+
+async function syncCartWithBackend(cartData) {
+  if (!cartData?.length) return;
+
+  try {
+    for (const item of cartData) {
+      const quantity = Number(item.quantity || 1);
+
+      for (let i = 0; i < quantity; i++) {
+        await addToServerCart(
+          item.product_id,
+          item.size_id ?? null,
+          item.color ?? null
+        );
+      }
+    }
+
+    localStorage.removeItem("cart");
+    console.log("✅ Carrito local sincronizado con backend.");
+  } catch (error) {
+    console.error("❌ Error en syncCartWithBackend:", error);
+    throw error;
+  }
+}
+
+// ==============================
+// GUEST CART
+// ==============================
+
+function addToGuestCart(productId, sizeId = null, color = null) {
+  const cart = getLocalCart();
+
+  const newItem = normaliseCartItem({
+    product_id: productId,
+    quantity: 1,
+    size_id: sizeId,
+    color,
+  });
+
+  const existingIndex = cart.findIndex(
+    (item) =>
+      item.product_id === newItem.product_id &&
+      item.size_id === newItem.size_id &&
+      item.color === newItem.color
+  );
+
+  if (existingIndex >= 0) {
+    cart[existingIndex].quantity += 1;
+  } else {
+    cart.push(newItem);
+  }
+
+  const consolidated = consolidateLocalCart(cart);
+  saveLocalCart(consolidated);
+
+  return consolidated;
+}
+
+// ==============================
+// MAIN
+// ==============================
+
+async function addToCart(productId, sizeId = null, colorRGB = null) {
+  console.log("Producto agregado:", { productId, sizeId, colorRGB });
+
+  document.dispatchEvent(new CustomEvent("cart:open"));
+
+  const accessToken = getAccessToken();
+
+  try {
+    if (accessToken) {
+      // Usuario autenticado
+      await addToServerCart(productId, sizeId, colorRGB);
+
+      updateCartCount();
+      await loadCartItems();
+      showMessage("Producto agregado al carrito.", "success");
+      return;
+    }
+
+    // Usuario invitado
+    const guestCart = addToGuestCart(productId, sizeId, colorRGB);
+
+    console.log("Carrito local guardado:", guestCart);
+
+    updateCartCount();
+    await loadCartItems();
+    showMessage("Producto agregado al carrito (sin iniciar sesión).", "success");
+  } catch (error) {
+    console.error("Error al agregar al carrito:", error);
+    showMessage(error.message || "Hubo un error en la solicitud.", "error");
+  }
+}
 
 
 async function updateCartCount() {
@@ -255,128 +430,110 @@ async function fetchCartTotal() {
     }
 }
 
-async function consolidateCartData(cartData) {
-    // Consolidar productos repetidos por ID, talla y color
-    const consolidatedCart = cartData.reduce((acc, item) => {
-        // Crear una clave única que considere el color
-        const key = `${item.product?.id || item.product_id}_${item.size_id || item.talla}_${item.color || "no_color"}`;
-
-        if (acc[key]) {
-            acc[key].count += item.quantity || item.count;
-        } else {
-            acc[key] = { ...item };
-        }
-        return acc;
-    }, {});
-
-    // Convertir el objeto a un array
-    const consolidatedArray = Object.values(consolidatedCart);
-
-    // Obtener productos únicos
-    const uniqueProductIds = [...new Set(consolidatedArray.map(item => item.product?.id || item.product_id))];
-
-    // Solicitar detalles de productos
-    const baseUrl = document.body.dataset.apiUrl;
-    const productResponses = await Promise.all(
-        uniqueProductIds.map(id =>
-            fetch(`${baseUrl}/product/${id}`)
-                .then(response => response.ok ? response.json() : null)
-                .catch(() => null)
-        )
-    );
-
-    // Crear un mapa de productos
-    const productMap = {};
-    productResponses.forEach(data => {
-        if (data) productMap[data.product.id] = data;
-    });
-
-    // Completar datos con tallas
-    return consolidatedArray.map(item => {
-        const productDetails = productMap[item.product?.id || item.product_id];
-        let cNombreTalla = null;
-        let sizeId = null;
-
-        if (productDetails?.tallas) {
-            const tallaEncontrada = productDetails.tallas.find(talla =>
-                talla.talla?.id === Number(item.size_id || item.talla)
-            );
-            cNombreTalla = tallaEncontrada ? tallaEncontrada.talla.cNombreTalla : null;
-            sizeId = tallaEncontrada ? tallaEncontrada.talla.id : null; // ← usamos el id real de la talla
-        }
-        
-
-        return {
-            product: productDetails?.product || item.product,
-            count: item.quantity || item.count,
-            talla: cNombreTalla,
-            size_id: sizeId,
-            color: item.color || null
-        };
-    });
-}
-
-
 async function loadCartItems() {
     try {
         const accessToken = localStorage.getItem("access_token");
         const cartContainer = document.querySelector(".cart__container");
         const totalElement = document.querySelector(".cart__total");
-        // const checkoutButton = document.querySelector(".cart__button");
         const checkoutButtonContainer = document.getElementById("checkout-button-container");
 
-
         cartContainer.innerHTML = "";
-        // checkoutButton.disabled = true;
-        checkoutButtonContainer.innerHTML = ""; // Limpiar el botón previo si existe
+        checkoutButtonContainer.innerHTML = "";
 
         let cartData = [];
         let totalCost = 0;
 
         if (accessToken) {
-            // Usuario autenticado
-            const [cartResponse, totalResponse] = await Promise.all([fetchCartItems(), fetchCartTotal()]);
-
+            // 🔐 Usuario autenticado
+            const [cartResponse, totalResponse] = await Promise.all([
+                fetchCartItems(),
+                fetchCartTotal()
+            ]);
+            console.log("cartResponse...:", cartResponse);
+            // console.log("totalResponse.......:", totalResponse);
             if (!cartResponse || !totalResponse) return;
 
             cartData = await consolidateCartData(cartResponse.cart);
             totalCost = totalResponse.total_cost;
+
         } else {
-            cartData = JSON.parse(localStorage.getItem("cart")) || [];
+            // 👤 Usuario invitado
+            let localCart = JSON.parse(localStorage.getItem("cart")) || [];
+
+            // 👉 CLAVE: enriquecer datos (ahora sí correcto)
+            cartData = await enrichLocalCart(localCart);
         }
 
-        // Consolidar productos duplicados en el carrito
-        console.log("DATOOOOOS GENERAAAL", cartData);
+        // console.log("🟢 Cart final:", cartData);
 
-        // Calcular el costo total
-        totalCost = cartData.reduce((acc, item) => acc + (item.product.price * item.count), 0);
-
-        // Renderizar carrito
+        // 🔥 Render
         cartData.forEach(item => {
             const product = item.product;
-            const tallaHTML = item.talla ? `<span>Size:</span> <span>${item.talla}</span>` : "";
-            const colorHTML = item.color ? `<span>Color:</span> <span style="background-color: ${item.color}; width: 20px; height: 20px; display: inline-block; border-radius: 50%;"></span>` : "";
+
+            if (!product) return; // seguridad
+
+            const tallaHTML = item.talla
+                ? `<span>Talla:</span> <span>${item.talla}</span>`
+                : "";
+            // const tallaHTML = item.size_id
+            //     ? `<span>Size:</span> <span>${item.talla || item.size_id}</span>`
+            //     : "";
+
+            const colorHTML = item.color
+                ? `<span>Color:</span> 
+                   <span style="
+                        background-color: ${item.color};
+                        width: 20px;
+                        height: 20px;
+                        display: inline-block;
+                        border-radius: 50%;
+                   "></span>`
+                : "";
 
             cartContainer.innerHTML += `
                 <article class="cart__card" data-product-id="${product.id}">
                     <div class="cart__box">
-                        <img src="${product.imagenes[0]?.cRutaImagen || 'assets/img/default.png'}" alt="${product.name}" class="cart__img lazy">
+                        <img src="${product.imagenes?.[0]?.cRutaImagen || 'assets/img/default.png'}"
+                             alt="${product.name}"
+                             class="cart__img">
                     </div>
+
                     <div class="cart__details">
                         <h3 class="cart__title">${product.name}</h3>
-                        <div class="cart__size-color">${tallaHTML} ${colorHTML}</div>
+
+                        <div class="cart__size-color">
+                            ${tallaHTML} ${colorHTML}
+                        </div>
+
                         <span class="cart__price">s/${product.price}</span>
+
                         <div class="cart__amount">
                             <div class="cart__amount-content">
-                                <span class="cart__amount-box cart__minus" data-product-id="${product.id}" data-size-id="${item.size_id}" data-color="${item.color}">
+
+                                <span class="cart__amount-box cart__minus"
+                                      data-product-id="${product.id}"
+                                      data-size-id="${item.size_id}"
+                                      data-color="${item.color}">
                                     <i class="bx bx-minus"></i>
                                 </span>
-                                <span class="cart__amount-number">${item.count}</span>
-                                <span class="cart__amount-box cart__plus" data-product-id="${product.id}" data-size-id="${item.size_id}" data-color="${item.color}">
+
+                                <span class="cart__amount-number">
+                                    ${item.quantity}
+                                </span>
+
+                                <span class="cart__amount-box cart__plus"
+                                      data-product-id="${product.id}"
+                                      data-size-id="${item.size_id}"
+                                      data-color="${item.color}">
                                     <i class="bx bx-plus"></i>
                                 </span>
+
                             </div>
-                            <i class="bx bx-trash-alt cart__amount-trash" data-product-id="${product.id}" data-size-id="${item.size_id}" data-color="${item.color}">
+
+                            <i class="bx bx-trash-alt cart__amount-trash"
+                               data-product-id="${product.id}"
+                               data-size-id="${item.size_id}"
+                               data-color="${item.color}">
                             </i>
                         </div>
                     </div>
@@ -384,25 +541,22 @@ async function loadCartItems() {
             `;
         });
 
-        // Calcular el costo total nuevamente
-        totalCost = cartData.reduce((acc, item) => acc + (item.product.price * item.count), 0);
+        // 🔥 Total (solo una vez)
+        totalCost = cartData.reduce((acc, item) => {
+            return acc + ((item.product?.price || 0) * item.quantity);
+        }, 0);
+
         totalElement.textContent = `s/ ${totalCost.toFixed(2)}`;
 
-        // if (cartData.length > 0) {
-        //     checkoutButton.disabled = false;
-        // }
+        // =========================
+        // EVENTOS
+        // =========================
 
-        // Configurar los eventos para actualizar la cantidad
         document.querySelectorAll(".cart__plus").forEach(button => {
             button.addEventListener("click", async (event) => {
-                const productId = Number(event.currentTarget.getAttribute("data-product-id"));
-                const sizeId = event.currentTarget.getAttribute("data-size-id");
-                const color = event.currentTarget.getAttribute("data-color");
-
-                if (!productId || !sizeId) {
-                    console.warn("Product ID o Size ID no válido");
-                    return;
-                }
+                const productId = Number(event.currentTarget.dataset.productId);
+                const sizeId = event.currentTarget.dataset.sizeId;
+                const color = event.currentTarget.dataset.color;
 
                 await updateCartItem(productId, 1, sizeId, color);
             });
@@ -410,123 +564,53 @@ async function loadCartItems() {
 
         document.querySelectorAll(".cart__minus").forEach(button => {
             button.addEventListener("click", async (event) => {
-                const productId = Number(event.currentTarget.getAttribute("data-product-id"));
-                const sizeId = event.currentTarget.getAttribute("data-size-id");
-                const color = event.currentTarget.getAttribute("data-color");
-
-                if (!productId || !sizeId) {
-                    console.warn("Product ID o Size ID no válido");
-                    return;
-                }
+                const productId = Number(event.currentTarget.dataset.productId);
+                const sizeId = event.currentTarget.dataset.sizeId;
+                const color = event.currentTarget.dataset.color;
 
                 await updateCartItem(productId, -1, sizeId, color);
             });
         });
 
-        // Evento de eliminación con color
         document.querySelectorAll(".cart__amount-trash").forEach(button => {
             button.addEventListener("click", async (event) => {
-                const productId = event.currentTarget.getAttribute("data-product-id");
-                const sizeId = event.currentTarget.getAttribute("data-size-id");
-                const color = event.currentTarget.getAttribute("data-color");
+                const productId = Number(event.currentTarget.dataset.productId);
+                const sizeId = event.currentTarget.dataset.sizeId;
+                const color = event.currentTarget.dataset.color;
 
-                await removeItemFromCart(productId, sizeId, color); // Enviar color para eliminar el ítem correcto
+                await removeItemFromCart(productId, sizeId, color);
             });
         });
-        // Asumimos que `cartData` contiene los productos en el carrito
+
+        // =========================
+        // CHECKOUT
+        // =========================
 
         if (cartData.length > 0) {
-            // Aquí añadimos el botón de Checkout al contenedor
-            const checkoutButtonContainer = document.getElementById("checkout-button-container");
             checkoutButtonContainer.innerHTML = `
-                <a id="cart__button" href="javascript:void(0);" class="cart__button">
+                <a id="cart__button" href="#" class="cart__button">
                     Check Out
-                    <div id="loading-spinner" class="loading-spinner"></div> <!-- Spinner -->
+                    <div id="loading-spinner" class="loading-spinner"></div>
                 </a>
             `;
 
-            // Obtener el botón de checkout y el spinner
             const checkoutButton = document.getElementById("cart__button");
             const loadingSpinner = document.getElementById("loading-spinner");
 
-            // Agregar evento de clic al botón de checkout
-            checkoutButton.addEventListener("click", async function (event) {
-                event.preventDefault();  // Evitar la acción por defecto del enlace
+            checkoutButton.addEventListener("click", function (event) {
+                event.preventDefault();
 
-                // Mostrar el spinner de carga
-                checkoutButton.disabled = true;  // Desactivar el botón para evitar múltiples clics
-                loadingSpinner.style.display = "inline-block";  // Mostrar el spinner
+                checkoutButton.disabled = true;
+                loadingSpinner.style.display = "inline-block";
 
-                // Validar el accessToken
-                const accessToken = localStorage.getItem("access_token");
-
-                // Depuración
-                console.log("accessToken:", accessToken);
-
-                // Validar si existe accessToken
-                if (!accessToken) {
-                    agregarToast({
-                        tipo: 'error',
-                        titulo: 'Inicie sesión para el CHECKOUT.',
-                        descripcion: "Iniciar sesión",
-                        autoCierre: true
-                    });
-
-                    // Ocultar el spinner y habilitar el botón nuevamente
-                    checkoutButton.disabled = false;
-                    loadingSpinner.style.display = "none";
-                    return;
-                }
-
-                // Verificar si el carrito está vacío
-                if (cartData.length === 0) {
-                    // Ocultar el spinner y habilitar el botón nuevamente
-                    checkoutButton.disabled = false;
-                    loadingSpinner.style.display = "none";
-                    return;
-                }
-
-                // Guardar datos del carrito
                 localStorage.setItem("checkout_data", JSON.stringify(cartData));
 
-                // Obtener el token de Braintree
-                const token = getToken();
-
-                try {
-                    const baseUrl = document.body.dataset.apiUrl;
-                    const response = await fetch(`${baseUrl}/api/payment/get-token`, {
-                        method: "GET",
-                        headers: {
-                            "Authorization": `Bearer ${token}`,  // Usamos el token de acceso almacenado
-                            "Content-Type": "application/json"
-                        }
-                    });
-
-                    const data = await response.json();
-                    const clientToken = data.braintree_token;
-
-                    // Ahora que tenemos el token, redirigir al checkout
-                    window.location.href = "/shop/checkouts/";
-
-                    // Guardamos el clientToken en el localStorage para accederlo luego
-                    localStorage.setItem('braintree_client_token', clientToken);
-
-                } catch (error) {
-                    console.error("Error al obtener el token de Braintree:", error);
-
-                    // Ocultar el spinner y habilitar el botón nuevamente
-                    checkoutButton.disabled = false;
-                    loadingSpinner.style.display = "none";
-                }
+                window.location.href = "/shop/checkouts/";
             });
         }
 
-
-
-
-
     } catch (error) {
-        console.error("Error en loadCartItems:", error);
+        console.error("❌ Error en loadCartItems:", error);
     }
 }
 
@@ -535,118 +619,131 @@ function getToken() {
 }
 
 
-async function removeItemFromCart(productId, sizeId = null, colorId = null) {
+async function removeItemFromCart(productId, sizeId = null, color = null) {
     const accessToken = localStorage.getItem("access_token");
+
     const productIdNum = Number(productId);
-    const sizeIdNum = (sizeId !== null && sizeId !== "null" && !isNaN(Number(sizeId)))
-        ? Number(sizeId)
-        : String(null);  // Aquí convertimos el null en una cadena "null"
+    const normalisedSizeId =
+        sizeId !== null && sizeId !== undefined && sizeId !== "" && sizeId !== "null"
+            ? String(sizeId)
+            : null;
 
+    const normalisedColor =
+        color !== null && color !== undefined && String(color).trim() !== "" && color !== "null"
+            ? String(color).trim().toLowerCase()
+            : null;
 
-    // Normalizar el color si es un objeto RGB
-    const colorIdStr = colorId !== null
-        ? (typeof colorId === "object" ? `rgb(${colorId.r}, ${colorId.g}, ${colorId.b})` : String(colorId))
-        : null;
-
-
-
-    // Obtener el carrito desde localStorage
-    let cart = JSON.parse(localStorage.getItem("cart")) || [];
-
-    // 🔹 Caso 1: Usuario NO logueado (modificar localStorage)
+    // =========================
+    // USUARIO INVITADO
+    // =========================
     if (!accessToken) {
         try {
-            // Filtrar y eliminar los productos que coincidan con product.id y size_id o product.id y color
-            const newCart = cart.filter(item =>
-                !(
-                    item.product.id === productIdNum &&
-                    (
-                        (sizeIdNum !== null && item.size_id === sizeIdNum) || // Coincidencia por talla
-                        (colorIdStr !== null && item.color === colorIdStr)   // Coincidencia por color
-                    )
-                )
-            );
+            const cart = JSON.parse(localStorage.getItem("cart")) || [];
 
-            if (newCart.length === cart.length) {
-                console.warn("⚠️ No se encontraron productos a eliminar.");
-            } else {
-                localStorage.setItem("cart", JSON.stringify(newCart));
-                console.log("✅ Productos eliminados del localStorage.");
-                await loadCartItems();
-                await updateCartCount();
-            }
+            const newCart = cart.filter(item => {
+                const sameProduct = Number(item.product_id) === productIdNum;
+                const sameSize = (item.size_id ?? null) === normalisedSizeId;
+                const sameColor = (item.color ?? null) === normalisedColor;
+
+                // eliminar solo la combinación exacta
+                return !(sameProduct && sameSize && sameColor);
+            });
+
+            localStorage.setItem("cart", JSON.stringify(newCart));
+
+            await loadCartItems();
+            await updateCartCount();
         } catch (error) {
-            console.error("❌ Error al manipular el localStorage:", error);
+            console.error("❌ Error al eliminar del carrito local:", error);
         }
         return;
     }
 
-    // 🔹 Caso 2: Usuario logueado (eliminar del backend)
+    // =========================
+    // USUARIO AUTENTICADO
+    // =========================
     try {
-
-        console.log("📌 PRODUCTO:", productIdNum, "Tipo de dato:", typeof productIdNum);
-        console.log("📌 TALLA:", sizeIdNum, "Tipo de dato:", typeof sizeIdNum);
-        console.log("📌 COLOR:", colorIdStr, "Tipo de dato:", typeof colorIdStr);
         const baseUrl = document.body.dataset.apiUrl;
+
+        const payload = {
+            product_id: productIdNum,
+            talla_id: normalisedSizeId !== null ? Number(normalisedSizeId) : null,
+            color: normalisedColor
+        };
+
         const response = await fetch(`${baseUrl}/api/cart/remove-item`, {
             method: "DELETE",
             headers: {
                 "Authorization": `Bearer ${accessToken}`,
                 "Content-Type": "application/json"
             },
-            body: JSON.stringify({
-                product_id: productIdNum,
-                talla_id: sizeIdNum,
-                color: colorIdStr
-            })
+            body: JSON.stringify(payload)
         });
 
         if (response.ok) {
-            console.log("✅ Producto eliminado del servidor.");
             await loadCartItems();
             await updateCartCount();
         } else {
-            const data = await response.json();
-            console.error("❌ Error al eliminar el producto del servidor:", data);
+            const data = await response.json().catch(() => ({}));
+            console.error("❌ Error al eliminar del servidor:", data);
         }
     } catch (error) {
         console.error("❌ Error en removeItemFromCart:", error);
     }
 }
 
-
-async function updateCartItem(productId, change, sizeId = null) {
+async function updateCartItem(productId, change, sizeId = null, color = null) {
     const accessToken = localStorage.getItem("access_token");
 
-    console.log("Enviando a backend:");
-    console.log("Product ID:", productId, "Tipo de dato:", typeof productId);
-    console.log("Cantidad:", change, "Tipo de dato:", typeof change);
+    const productIdNum = Number(productId);
+    const normalisedSizeId =
+        sizeId !== null && sizeId !== undefined && sizeId !== "" && sizeId !== "null"
+            ? String(sizeId)
+            : null;
 
-    sizeId = parseInt(sizeId)
-
-    console.log("Talla ID:", sizeId, "Tipo de dato:", typeof sizeId);
+    const normalisedColor =
+        color !== null && color !== undefined && String(color).trim() !== "" && color !== "null"
+            ? String(color).trim().toLowerCase()
+            : null;
 
     try {
-        // Obtener la cantidad actual desde el DOM
-        const productElement = document.querySelector(`.cart__card[data-product-id="${productId}"]`);
-        if (!productElement) return;
+        // Buscar el item exacto usando product + size + color
+        const selector = `.cart__amount-box[data-product-id="${productIdNum}"][data-size-id="${normalisedSizeId}"][data-color="${normalisedColor}"]`;
+        const clickedElement = document.querySelector(selector);
 
-        let countElement = productElement.querySelector(".cart__amount-number");
-        let currentCount = parseInt(countElement.textContent);
+        let currentCount = 0;
 
-        let newCount = currentCount + change;
+        if (clickedElement) {
+            const card = clickedElement.closest(".cart__card");
+            const countElement = card?.querySelector(".cart__amount-number");
+            currentCount = Number(countElement?.textContent || 0);
+        }
 
-        // ✅ Evitar cantidad negativa o cero antes de proceder
+        // fallback: si no encontró en DOM, calculamos desde localStorage
+        if (!currentCount && !accessToken) {
+            const cartItems = JSON.parse(localStorage.getItem("cart")) || [];
+            const existingItem = cartItems.find(item =>
+                Number(item.product_id) === productIdNum &&
+                (item.size_id ?? null) === normalisedSizeId &&
+                (item.color ?? null) === normalisedColor
+            );
+            currentCount = Number(existingItem?.quantity || 0);
+        }
+
+        const newCount = currentCount + change;
+
+        // Si llega a 0 o menos, eliminar
         if (newCount < 1) {
-            await removeItemFromCart(productId);
-            await loadCartItems();
-            await updateCartCount();
+            await removeItemFromCart(productIdNum, normalisedSizeId, normalisedColor);
             return;
         }
 
-        // ✅ USUARIOS AUTENTICADOS
+        // =========================
+        // USUARIO AUTENTICADO
+        // =========================
         if (accessToken) {
             const baseUrl = document.body.dataset.apiUrl;
+
             const response = await fetch(`${baseUrl}/api/cart/update-item`, {
                 method: "PUT",
                 headers: {
@@ -654,52 +751,54 @@ async function updateCartItem(productId, change, sizeId = null) {
                     "Content-Type": "application/json"
                 },
                 body: JSON.stringify({
-                    product_id: productId,
-                    count: change,
-                    talla_id: sizeId
+                    product_id: productIdNum,
+                    count: change, // aquí mantengo tu backend tal como lo espera
+                    talla_id: normalisedSizeId !== null ? Number(normalisedSizeId) : null,
+                    color: normalisedColor
                 })
             });
 
-            const data = await response.json();
+            const data = await response.json().catch(() => ({}));
 
             if (response.ok) {
-                console.log("Producto actualizado correctamente:", data);
                 await loadCartItems();
                 await updateCartCount();
             } else {
-                console.error("Error al actualizar el producto:", data.error);
-            }
-        } else {
-            // ✅ USUARIOS NO AUTENTICADOS (localStorage)
-            let cartItems = JSON.parse(localStorage.getItem("cart")) || [];
-
-            // Buscar el producto considerando el sizeId si existe
-            const itemIndex = cartItems.findIndex(item =>
-                item.product_id === productId &&
-                (sizeId ? item.size_id === sizeId : true) // Comparación segura
-            );
-
-            if (itemIndex !== -1) {
-                // ✅ Actualizar la cantidad
-                cartItems[itemIndex].quantity = newCount;
-            } else {
-                console.warn("Producto no encontrado en el carrito local");
-                return;
+                console.error("❌ Error al actualizar en servidor:", data);
             }
 
-            // ✅ Guardar el carrito actualizado
-            localStorage.setItem("cart", JSON.stringify(cartItems));
-            console.log("Producto actualizado en localStorage:", cartItems);
-
-            // ✅ Actualizar UI localmente
-            countElement.textContent = newCount;
-            await updateCartCount();
+            return;
         }
 
+        // =========================
+        // USUARIO INVITADO
+        // =========================
+        let cartItems = JSON.parse(localStorage.getItem("cart")) || [];
+
+        const itemIndex = cartItems.findIndex(item =>
+            Number(item.product_id) === productIdNum &&
+            (item.size_id ?? null) === normalisedSizeId &&
+            (item.color ?? null) === normalisedColor
+        );
+
+        if (itemIndex === -1) {
+            console.warn("⚠️ Producto no encontrado en carrito local");
+            return;
+        }
+
+        cartItems[itemIndex].quantity = newCount;
+
+        localStorage.setItem("cart", JSON.stringify(cartItems));
+
+        await loadCartItems();
+        await updateCartCount();
+
     } catch (error) {
-        console.error("Error en updateCartItem:", error);
+        console.error("❌ Error en updateCartItem:", error);
     }
 }
+
+
 
 
 function showMessage(message, type = "success") {
@@ -716,55 +815,19 @@ function showMessage(message, type = "success") {
 
 // Llamar a la función al cargar la página
 document.addEventListener("DOMContentLoaded", async () => {
-    updateCartCount();
-    loadCartItems();
-
     const accessToken = localStorage.getItem("access_token");
     let cartData = JSON.parse(localStorage.getItem("cart")) || [];
-    console.log("📦 DATOS EN LOCALSTORAGE:", cartData);
 
-    if (accessToken) {
-        // 🟢 Usuario autenticado: Sincronizar el carrito con el backend
-        await syncCartWithBackend(cartData, accessToken);
+    if (accessToken && cartData.length > 0) {
+        // 🔄 1. sincronizar primero
+        await syncCartWithBackend(cartData);
     }
+
+    // 🔄 2. luego recién cargar UI
+    await updateCartCount();
+    await loadCartItems();
 });
 
-
-async function syncCartWithBackend(cartData, accessToken) {
-    const baseUrl = document.body.dataset.apiUrl;
-    const url = `${baseUrl}/api/cart/add-item`;
-
-    for (const item of cartData) {
-        const data = {
-            product_id: item.product.id,
-            ...(item.size_id && { talla_id: item.size_id }),
-            ...(item.color && { color: item.color }),
-            count: item.count
-        };
-
-        try {
-            const response = await fetch(url, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${accessToken}`,
-                },
-                body: JSON.stringify(data),
-            });
-
-            const result = await response.json();
-
-            if (!response.ok) {
-                console.error("❌ Error al sincronizar el producto:", result);
-            }
-        } catch (error) {
-            console.error("❌ Error en la sincronización:", error);
-        }
-    }
-
-    // Después de la sincronización, limpiar el carrito local
-    localStorage.removeItem("cart");
-}
 
 
 // Hacer la función accesible globalmente

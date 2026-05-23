@@ -64,6 +64,8 @@ class UserAccountManager(BaseUserManager):
 
             email = self.normalize_email(email)
             user = self.model(email=email, **extra_fields)
+            # 👇 clave: por defecto inactivo (requiere activación)
+            user.is_active = False
             user.set_password(password)
             user.save(using=self._db)  # Es importante especificar el `using` para bases de datos múltiples.
 
@@ -82,6 +84,7 @@ class UserAccountManager(BaseUserManager):
         if extra_fields.get('is_superuser') is not True:
             raise ValueError('El superusuario debe tener is_superuser=True.')
 
+        extra_fields.setdefault("is_active", True)
         return self.create_user(email, password, **extra_fields)
 
     def get_by_natural_key(self, email):
@@ -98,6 +101,11 @@ class UserAccount(AbstractBaseUser, PermissionsMixin):
     ciudad = models.CharField(max_length=100, blank=True, null=True)
     region = models.CharField(max_length=100, blank=True, null=True)
     codPostal = models.CharField(max_length=10, blank=True, null=True)
+
+    # 🔹 NUEVOS CAMPOS
+    profile_picture = models.URLField(blank=True, null=True)
+    provider = models.CharField(max_length=30, blank=True, null=True, default="manual")
+
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
 

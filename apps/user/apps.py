@@ -6,4 +6,7 @@ class UserConfig(AppConfig):
     name = 'apps.user'
 
     # def ready(self):
+    #     import apps.user.signals
+
+    # def ready(self):
     #     import apps.user.signals  # Importar la señal para que se ejecute

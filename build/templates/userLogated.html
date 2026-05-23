@@ -17,6 +17,12 @@ Inicio
             <li class="sidebar-list-item" data-url="{% url 'perfilUser' %}">
                 <a href="#"> <span class="material-icons-outlined">person</span> Perfil </a>
             </li>
+            <li class="sidebar-list-item"  data-logout-url="{% url 'logout' %}">
+                <a href="#" id="closeSesion">
+                    <span class="material-icons-outlined">logout</span>
+                    Cerrar sesión
+                </a>
+            </li>
         </ul>
     </aside>
     <main id="main-content" class="main-containerUser">
